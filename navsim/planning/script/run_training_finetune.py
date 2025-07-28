@@ -90,8 +90,8 @@ def main(cfg: DictConfig) -> None:
     logger.info(f"Path where all results are stored: {cfg.output_dir}")
 
     logger.info("Building Agent")
-    print(cfh)
-    print(cfh.agent)
+    print(cfg)
+    print(cfg.agent)
     agent: AbstractAgent = instantiate(cfg.agent)
     print(agent)
 
