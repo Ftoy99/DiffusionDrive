@@ -90,10 +90,7 @@ def main(cfg: DictConfig) -> None:
     logger.info(f"Path where all results are stored: {cfg.output_dir}")
 
     logger.info("Building Agent")
-    print(cfg)
-    print(cfg.agent)
     agent: AbstractAgent = instantiate(cfg.agent)
-    print(agent)
 
     logger.info("Building Lightning Module")
     lightning_module = AgentLightningModule(
