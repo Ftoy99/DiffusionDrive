@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 from navsim.agents.abstract_agent import AbstractAgent
 from navsim.agents.diffusiondrive.transfuser_config import TransfuserConfig
 
-from navsim.agents.diffusiondrive.transfuser_model_v3 import V3TransfuserModel as TransfuserModel
+from navsim.agents.diffusiondrive2.transfuser_model_v3 import V3TransfuserModel as TransfuserModel
 
 from navsim.agents.diffusiondrive.transfuser_callback import TransfuserCallback
 from navsim.agents.diffusiondrive.transfuser_loss import transfuser_loss
@@ -18,7 +18,7 @@ from navsim.planning.training.abstract_feature_target_builder import AbstractFea
 from navsim.agents.diffusiondrive.modules.scheduler import WarmupCosLR
 from omegaconf import DictConfig, OmegaConf, open_dict
 import torch.optim as optim
-from navsim.common.dataclasses import AgentInput, Trajectory, SensorConfig
+from navsim.common.dataclasses import SensorConfig
 
 
 def build_from_configs(obj, cfg: DictConfig, **kwargs):

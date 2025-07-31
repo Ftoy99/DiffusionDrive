@@ -104,8 +104,10 @@ class V3TransfuserModel(nn.Module):
         batch_size = status_feature.shape[0]
 
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
+
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
+
         concat_cross_bev_shape = bev_feature.shape[2:]
         bev_feature = self._bev_downscale(bev_feature).flatten(-2, -1)
         bev_feature = bev_feature.permute(0, 2, 1)
@@ -125,6 +127,7 @@ class V3TransfuserModel(nn.Module):
         cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
+        # Wtf is this??
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
         query_out = self._tf_decoder(query, keyval)
 
@@ -525,7 +528,7 @@ class TrajectoryHead(nn.Module):
         return {"trajectory": best_reg, "trajectory_loss": ret_traj_loss, "trajectory_loss_dict": trajectory_loss_dict}
 
     def forward_test(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, global_img) -> \
-    Dict[str, torch.Tensor]:
+            Dict[str, torch.Tensor]:
         step_num = 2
         bs = ego_query.shape[0]
         device = ego_query.device
@@ -540,7 +543,6 @@ class TrajectoryHead(nn.Module):
         noise = torch.randn(img.shape, device=device)
         trunc_timesteps = torch.ones((bs,), device=device, dtype=torch.long) * 8
         img = self.diffusion_scheduler.add_noise(original_samples=img, noise=noise, timesteps=trunc_timesteps)
-        noisy_trajs = self.denorm_odo(img)
         ego_fut_mode = img.shape[1]
         for k in roll_timesteps[:]:
             x_boxes = torch.clamp(img, min=-1, max=1)
