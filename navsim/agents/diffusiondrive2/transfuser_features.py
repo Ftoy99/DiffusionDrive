@@ -128,10 +128,12 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
     def _get_gaze_feature(self, image):
         print(f"image type {type(image)} and shape {image.shape}")
         depth = depth_inf(ToPILImage()(image))
-
+        try:
+            print(f"image type {type(depth)} and shape {image.shape}")
+        except Exception as e:
+            print(e)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        depth_vis = depth.squeeze().cpu().numpy()
-        plt.imsave(f"/mnt/jimmys/debug/depth_map_{timestamp}.png", depth_vis, cmap='plasma')
+        plt.imsave(f"/mnt/jimmys/debug/depth_map_{timestamp}.png", depth, cmap='plasma')
 
         return torch.tensor(depth)
 
