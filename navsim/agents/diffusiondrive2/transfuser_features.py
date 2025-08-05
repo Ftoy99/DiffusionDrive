@@ -126,7 +126,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         return torch.tensor(features)
 
     def _get_gaze_feature(self, image):
-        print(f"image type {type(image)}")
+        print(f"image type {type(image)} and shape {image.shape}")
         depth = depth_inf(ToPILImage()(image))
         print(f"Depth shape {depth.shape}")
 
