@@ -134,16 +134,18 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
 
         # Convert to PIL and run depth inference
         depth = depth_inf(ToPILImage()(img_cropped))
-        depth = ToTensor()(depth)
-
-        # Estimate gaze
-        gaze_x, gaze_y = self._estimate_gaze_from_depth(depth)
-
-        # Map gaze_y back to original image height
-        gaze_y = gaze_y * (crop_H / depth.shape[0])
-
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         plt.imsave(f"/mnt/jimmys/debug/{timestamp}_depth_map.png", depth, cmap='plasma')
+
+        depth_tensor = ToTensor()(depth)
+
+        # Estimate gaze
+        gaze_x, gaze_y = self._estimate_gaze_from_depth(depth_tensor)
+
+        # Map gaze_y back to original image height
+        gaze_y = gaze_y * (crop_H / depth_tensor.shape[0])
+
+
 
         crop_size = 144
 
@@ -159,7 +161,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
 
         gaze_crop = image[:, y1:y2, x1:x2]
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", depth, cmap='plasma')
+        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", gaze_crop)
         return gaze_crop  # optionally return gaze_x, gaze_y too
 
     def _estimate_gaze_from_depth(self, depthImg, top_percent=0.05):
