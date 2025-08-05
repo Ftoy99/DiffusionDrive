@@ -154,6 +154,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
 
         gaze_crop = image[:, y1:y2, x1:x2]
         print(f"Gaze crop type {type(gaze_crop)} and shape {gaze_crop.shape}")
+        print(gaze_crop)
         # Debug save
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
