@@ -8,6 +8,7 @@ import numpy.typing as npt
 import torch
 from matplotlib import pyplot as plt
 from torchvision import transforms
+from torchvision.transforms import ToPILImage
 
 from shapely import affinity
 from shapely.geometry import Polygon, LineString
@@ -24,6 +25,7 @@ from navsim.planning.scenario_builder.navsim_scenario_utils import tracked_objec
 from navsim.planning.training.abstract_feature_target_builder import AbstractFeatureBuilder, AbstractTargetBuilder
 
 from navsim.agents.diffusiondrive2.depth_gaze import depth_inf
+
 
 class TransfuserFeatureBuilder(AbstractFeatureBuilder):
     """Input feature builder for TransFuser."""
@@ -125,7 +127,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
 
     def _get_gaze_feature(self, image):
         print(f"image type {type(image)}")
-        depth = depth_inf(image)
+        depth = depth_inf(ToPILImage()(image))
         print(f"Depth shape {depth.shape}")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
