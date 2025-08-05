@@ -1,5 +1,5 @@
 from transformers import pipeline
-
+import torch
 
 print("Loading LiheYoung/depth-anything-small-hf")
 # load pipe
