@@ -154,21 +154,6 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         y2 = y1 + crop_size
 
         gaze_crop = image[:, y1:y2, x1:x2]
-
-        # Debug save
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        # For RGB image
-        img_np = image.permute(1, 2, 0).cpu().numpy()  # (C,H,W) → (H,W,C)
-        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_full_img.png", img_np)
-
-        # For gaze crop (BGR → RGB swap)
-        gaze_np = gaze_crop[[2, 1, 0], :, :].permute(1, 2, 0).cpu().numpy()
-        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", gaze_np)
-
-        # Depth already good
-        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_depth_map.png", depth, cmap='plasma')
-
         return gaze_crop  # optionally: return gaze_x, gaze_y
 
     def _estimate_gaze_from_depth(self, depthImg, top_percent=0.05):
