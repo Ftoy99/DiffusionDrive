@@ -21,6 +21,7 @@ from navsim.common.enums import BoundingBoxIndex, LidarIndex
 from navsim.planning.scenario_builder.navsim_scenario_utils import tracked_object_types
 from navsim.planning.training.abstract_feature_target_builder import AbstractFeatureBuilder, AbstractTargetBuilder
 
+from depth_gaze import depth_inf
 
 class TransfuserFeatureBuilder(AbstractFeatureBuilder):
     """Input feature builder for TransFuser."""
@@ -41,6 +42,9 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         features = {}
 
         features["camera_feature"] = self._get_camera_feature(agent_input)
+
+        features["gaze"] = self._get_gaze_feature(features["camera_feature"])
+
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
         features["status_feature"] = torch.concatenate(
             [
@@ -116,6 +120,12 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         features = np.transpose(features, (2, 0, 1)).astype(np.float32)
 
         return torch.tensor(features)
+
+    def _get_gaze_feature(self, image):
+        depth = depth_inf(image)
+        print(f"Depth shape {depth.shape}")
+        gaze = depth
+        return torch.tensor(gaze)
 
 
 class TransfuserTargetBuilder(AbstractTargetBuilder):
