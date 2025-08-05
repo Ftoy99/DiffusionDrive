@@ -126,7 +126,6 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         return torch.tensor(features)
 
     def _get_gaze_feature(self, image):
-        img_to_depth = image
         C, H, W = image.shape
 
         # Crop the image to remove asphalt
@@ -165,7 +164,8 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
 
     def _estimate_gaze_from_depth(self, depthImg, top_percent=0.05):
         print(f"depth_img shape{depthImg.shape}")
-        H, W = depthImg.shape
+        C, H, W = depthImg.shape
+        print(f"C{C},H{H},W{W}")
         N = H * W
         k = int(N * top_percent)
 
