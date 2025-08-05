@@ -126,17 +126,18 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         return torch.tensor(features)
 
     def _get_gaze_feature(self, image):
-        print(f"image type {type(image)} and shape {image.shape}")
+        img_to_depth = image
+        C, H, W = image.shape
+
+        # Crop the image to remove asphalt
+        crop_rows = int(img_to_depth.shape[1] * 0.75)  # keep top 75%
+        img_cropped = img_to_depth[:, :crop_rows, :]
+
+        # Convert to PIL Image and pass through depth model
         depth = depth_inf(ToPILImage()(image))
-        try:
-            print(f"depth type {type(depth)} and shape {image.shape}")
-        except Exception as e:
-            print(e)
-        try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            plt.imsave(f"/mnt/jimmys/debug/depth_map_{timestamp}.png", depth, cmap='plasma')
-        except Exception as e:
-            print(e)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plt.imsave(f"/mnt/jimmys/debug/depth_map_{timestamp}.png", depth, cmap='plasma')
+
         return torch.tensor(depth)
 
 
@@ -217,7 +218,7 @@ class TransfuserTargetBuilder(AbstractTargetBuilder):
         return torch.tensor(agent_states), torch.tensor(agent_labels)
 
     def _compute_bev_semantic_map(
-        self, annotations: Annotations, map_api: AbstractMap, ego_pose: StateSE2
+            self, annotations: Annotations, map_api: AbstractMap, ego_pose: StateSE2
     ) -> torch.Tensor:
         """
         Creates sematic map in BEV
@@ -240,7 +241,7 @@ class TransfuserTargetBuilder(AbstractTargetBuilder):
         return torch.Tensor(bev_semantic_map)
 
     def _compute_map_polygon_mask(
-        self, map_api: AbstractMap, ego_pose: StateSE2, layers: List[SemanticMapLayer]
+            self, map_api: AbstractMap, ego_pose: StateSE2, layers: List[SemanticMapLayer]
     ) -> npt.NDArray[np.bool_]:
         """
         Compute binary mask given a map layer class
@@ -265,7 +266,7 @@ class TransfuserTargetBuilder(AbstractTargetBuilder):
         return map_polygon_mask > 0
 
     def _compute_map_linestring_mask(
-        self, map_api: AbstractMap, ego_pose: StateSE2, layers: List[SemanticMapLayer]
+            self, map_api: AbstractMap, ego_pose: StateSE2, layers: List[SemanticMapLayer]
     ) -> npt.NDArray[np.bool_]:
         """
         Compute binary of linestring given a map layer class
@@ -312,7 +313,7 @@ class TransfuserTargetBuilder(AbstractTargetBuilder):
 
     @staticmethod
     def _query_map_objects(
-        self, map_api: AbstractMap, ego_pose: StateSE2, layers: List[SemanticMapLayer]
+            self, map_api: AbstractMap, ego_pose: StateSE2, layers: List[SemanticMapLayer]
     ) -> List[MapObject]:
         """
         Queries map objects
