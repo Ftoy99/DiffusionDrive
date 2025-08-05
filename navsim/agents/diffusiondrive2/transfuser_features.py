@@ -158,6 +158,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
 
         # Debug save
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        print(f"depth type is {type(depth)} and shape is {depth.shape}")
         plt.imsave(f"/mnt/jimmys/debug/{timestamp}_depth_map.png", depth, cmap='plasma')
         plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", gaze_crop)
 
