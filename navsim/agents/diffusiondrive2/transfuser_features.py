@@ -21,7 +21,7 @@ from navsim.common.enums import BoundingBoxIndex, LidarIndex
 from navsim.planning.scenario_builder.navsim_scenario_utils import tracked_object_types
 from navsim.planning.training.abstract_feature_target_builder import AbstractFeatureBuilder, AbstractTargetBuilder
 
-from depth_gaze import depth_inf
+from navsim.agents.diffusiondrive2.depth_gaze import depth_inf
 
 class TransfuserFeatureBuilder(AbstractFeatureBuilder):
     """Input feature builder for TransFuser."""

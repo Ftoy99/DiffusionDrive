@@ -1,5 +1,7 @@
 from transformers import pipeline
 
+
+print("Loading LiheYoung/depth-anything-small-hf")
 # load pipe
 pipe = pipeline(task="depth-estimation", model="LiheYoung/depth-anything-small-hf")
 
