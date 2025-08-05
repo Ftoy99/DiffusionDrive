@@ -128,7 +128,6 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
     def _get_gaze_feature(self, image):
         print(f"image type {type(image)} and shape {image.shape}")
         depth = depth_inf(ToPILImage()(image))
-        print(f"Depth shape {depth.shape}")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         depth_vis = depth.squeeze().cpu().numpy()
