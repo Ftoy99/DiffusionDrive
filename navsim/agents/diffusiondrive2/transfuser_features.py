@@ -8,7 +8,7 @@ import numpy.typing as npt
 import torch
 from matplotlib import pyplot as plt
 from torchvision import transforms
-from torchvision.transforms import ToPILImage,ToTensor
+from torchvision.transforms import ToPILImage, ToTensor
 
 from shapely import affinity
 from shapely.geometry import Polygon, LineString
@@ -133,7 +133,8 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         img_cropped = image[:, :crop_H, :]
 
         # Depth inference
-        depth = depth_inf(ToPILImage()(img_cropped))
+        depth = img_cropped
+        depth = depth_inf(ToPILImage()(depth))
         depth_tensor = ToTensor()(depth)
 
         # Estimate gaze from depth
@@ -157,9 +158,16 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         # Debug save
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_full_img.png", ToPILImage()(image))
+        # For RGB image
+        img_np = image.permute(1, 2, 0).cpu().numpy()  # (C,H,W) → (H,W,C)
+        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_full_img.png", img_np)
+
+        # For gaze crop (BGR → RGB swap)
+        gaze_np = gaze_crop[[2, 1, 0], :, :].permute(1, 2, 0).cpu().numpy()
+        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", gaze_np)
+
+        # Depth already good
         plt.imsave(f"/mnt/jimmys/debug/{timestamp}_depth_map.png", depth, cmap='plasma')
-        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", ToPILImage()(gaze_crop[[2, 1, 0], :, :]))
 
         return gaze_crop  # optionally: return gaze_x, gaze_y
 
