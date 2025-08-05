@@ -132,53 +132,46 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         crop_H = int(H * 0.75)
         img_cropped = image[:, :crop_H, :]
 
-        # Convert to PIL and run depth inference
+        # Depth inference
         depth = depth_inf(ToPILImage()(img_cropped))
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_depth_map.png", depth, cmap='plasma')
-
         depth_tensor = ToTensor()(depth)
 
-        # Estimate gaze
+        # Estimate gaze from depth
         gaze_x, gaze_y = self._estimate_gaze_from_depth(depth_tensor)
 
         # Map gaze_y back to original image height
-        gaze_y = gaze_y * (crop_H / depth_tensor.shape[0])
+        gaze_y = gaze_y * (crop_H / depth_tensor.shape[1])  # corrected shape index
 
-
-
+        # Crop around gaze point
         crop_size = 144
-
-        # Centered box
         x1 = int(gaze_x - crop_size // 2)
         y1 = int(gaze_y - crop_size // 2)
 
-        # Clamp to image bounds to ensure full square
         x1 = max(0, min(x1, W - crop_size))
-        y1 = max(0, min(y1, H - crop_size))
+        y1 = max(0, min(y1, H - crop_size))  # H is still original height for full image crop
         x2 = x1 + crop_size
         y2 = y1 + crop_size
 
         gaze_crop = image[:, y1:y2, x1:x2]
+
+        # Debug save
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_depth_map.png", depth, cmap='plasma')
         plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", gaze_crop)
-        return gaze_crop  # optionally return gaze_x, gaze_y too
+
+        return gaze_crop  # optionally: return gaze_x, gaze_y
 
     def _estimate_gaze_from_depth(self, depthImg, top_percent=0.05):
-        print(f"depth_img shape{depthImg.shape}")
-        C, H, W = depthImg.shape
-        print(f"C{C},H{H},W{W}")
-        N = H * W
-        k = int(N * top_percent)
+        _, H, W = depthImg.shape
+        k = int(H * W * top_percent)
 
-        # Flatten and get indices of closest pixels
+        # Flatten and get top-k closest points (smallest depth)
         depth_flat = depthImg.view(-1)
-        topk_vals, topk_idx = torch.topk(-depth_flat, k)  # closest = smallest depth
+        topk_vals, topk_idx = torch.topk(-depth_flat, k)
 
         ys = topk_idx // W
         xs = topk_idx % W
 
-        # Compute mean position (center of mass)
         gaze_x = xs.float().mean()
         gaze_y = ys.float().mean()
         return gaze_x.item(), gaze_y.item()
