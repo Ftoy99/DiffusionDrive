@@ -134,7 +134,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         img_cropped = img_to_depth[:, :crop_rows, :]
 
         # Convert to PIL Image and pass through depth model
-        depth = depth_inf(ToPILImage()(image))
+        depth = depth_inf(ToPILImage()(img_cropped))
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         plt.imsave(f"/mnt/jimmys/debug/depth_map_{timestamp}.png", depth, cmap='plasma')
 
