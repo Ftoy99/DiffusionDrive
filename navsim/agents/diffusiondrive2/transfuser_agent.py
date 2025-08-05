@@ -13,7 +13,7 @@ from navsim.agents.diffusiondrive2.transfuser_model_v3 import V3TransfuserModel 
 
 from navsim.agents.diffusiondrive.transfuser_callback import TransfuserCallback
 from navsim.agents.diffusiondrive.transfuser_loss import transfuser_loss
-from navsim.agents.diffusiondrive.transfuser_features import TransfuserFeatureBuilder, TransfuserTargetBuilder
+from navsim.agents.diffusiondrive2.transfuser_features import TransfuserFeatureBuilder, TransfuserTargetBuilder
 from navsim.planning.training.abstract_feature_target_builder import AbstractFeatureBuilder, AbstractTargetBuilder
 from navsim.agents.diffusiondrive.modules.scheduler import WarmupCosLR
 from omegaconf import DictConfig, OmegaConf, open_dict
