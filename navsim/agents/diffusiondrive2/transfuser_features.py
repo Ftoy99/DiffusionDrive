@@ -130,15 +130,54 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         C, H, W = image.shape
 
         # Crop the image to remove asphalt
-        crop_rows = int(img_to_depth.shape[1] * 0.75)  # keep top 75%
-        img_cropped = img_to_depth[:, :crop_rows, :]
+        crop_H = int(H * 0.75)
+        img_cropped = image[:, :crop_H, :]
 
-        # Convert to PIL Image and pass through depth model
+        # Convert to PIL and run depth inference
         depth = depth_inf(ToPILImage()(img_cropped))
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        plt.imsave(f"/mnt/jimmys/debug/depth_map_{timestamp}.png", depth, cmap='plasma')
 
-        return torch.tensor(depth)
+        # Estimate gaze
+        gaze_x, gaze_y = self._estimate_gaze_from_depth(depth)
+
+        # Map gaze_y back to original image height
+        gaze_y = gaze_y * (crop_H / depth.shape[0])
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_depth_map.png", depth, cmap='plasma')
+
+        crop_size = 144
+
+        # Centered box
+        x1 = int(gaze_x - crop_size // 2)
+        y1 = int(gaze_y - crop_size // 2)
+
+        # Clamp to image bounds to ensure full square
+        x1 = max(0, min(x1, W - crop_size))
+        y1 = max(0, min(y1, H - crop_size))
+        x2 = x1 + crop_size
+        y2 = y1 + crop_size
+
+        gaze_crop = image[:, y1:y2, x1:x2]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", depth, cmap='plasma')
+        return gaze_crop  # optionally return gaze_x, gaze_y too
+
+    def _estimate_gaze_from_depth(depthImg, top_percent=0.05):
+        H, W = depthImg.shape
+        N = H * W
+        k = int(N * top_percent)
+
+        # Flatten and get indices of closest pixels
+        depth_flat = depthImg.view(-1)
+        topk_vals, topk_idx = torch.topk(-depth_flat, k)  # closest = smallest depth
+
+        ys = topk_idx // W
+        xs = topk_idx % W
+
+        # Compute mean position (center of mass)
+        gaze_x = xs.float().mean()
+        gaze_y = ys.float().mean()
+        return gaze_x.item(), gaze_y.item()
 
 
 class TransfuserTargetBuilder(AbstractTargetBuilder):
