@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import IntEnum
 from typing import Any, Dict, List, Tuple
 import cv2
@@ -5,6 +6,7 @@ import numpy as np
 import numpy.typing as npt
 
 import torch
+from matplotlib import pyplot as plt
 from torchvision import transforms
 
 from shapely import affinity
@@ -124,8 +126,12 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
     def _get_gaze_feature(self, image):
         depth = depth_inf(image)
         print(f"Depth shape {depth.shape}")
-        gaze = depth
-        return torch.tensor(gaze)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        depth_vis = depth.squeeze().cpu().numpy()
+        plt.imsave(f"/mnt/jimmys/debug/depth_map_{timestamp}.png", depth_vis, cmap='plasma')
+
+        return torch.tensor(depth)
 
 
 class TransfuserTargetBuilder(AbstractTargetBuilder):
