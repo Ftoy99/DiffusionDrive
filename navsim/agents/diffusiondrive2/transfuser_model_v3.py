@@ -95,10 +95,10 @@ class V3TransfuserModel(nn.Module):
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
-        """Torch module forward pass."""
 
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
+        gaze_feature: torch.Tensor = features["gaze"]
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]

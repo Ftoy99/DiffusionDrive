@@ -44,11 +44,8 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
     def compute_features(self, agent_input: AgentInput) -> Dict[str, torch.Tensor]:
         """Inherited, see superclass."""
         features = {}
-
         features["camera_feature"] = self._get_camera_feature(agent_input)
-
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
-
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
         features["status_feature"] = torch.concatenate(
             [
