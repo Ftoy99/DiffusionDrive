@@ -162,7 +162,8 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", depth, cmap='plasma')
         return gaze_crop  # optionally return gaze_x, gaze_y too
 
-    def _estimate_gaze_from_depth(depthImg, top_percent=0.05):
+    def _estimate_gaze_from_depth(self,depthImg, top_percent=0.05):
+        print(f"depth_img shape{depthImg.shape}")
         H, W = depthImg.shape
         N = H * W
         k = int(N * top_percent)
