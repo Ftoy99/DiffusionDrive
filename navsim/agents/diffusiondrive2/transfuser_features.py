@@ -157,7 +157,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         # Debug save
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", ToPILImage()(image))
+        plt.imsave(f"/mnt/jimmys/debug/{timestamp}_full_img.png", ToPILImage()(image))
         plt.imsave(f"/mnt/jimmys/debug/{timestamp}_depth_map.png", depth, cmap='plasma')
         plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", ToPILImage()(gaze_crop[[2, 1, 0], :, :]))
 
