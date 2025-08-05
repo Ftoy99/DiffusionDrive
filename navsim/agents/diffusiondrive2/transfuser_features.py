@@ -8,7 +8,7 @@ import numpy.typing as npt
 import torch
 from matplotlib import pyplot as plt
 from torchvision import transforms
-from torchvision.transforms import ToPILImage
+from torchvision.transforms import ToPILImage,ToTensor
 
 from shapely import affinity
 from shapely.geometry import Polygon, LineString
@@ -135,6 +135,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
 
         # Convert to PIL and run depth inference
         depth = depth_inf(ToPILImage()(img_cropped))
+        depth = ToTensor()(depth)
 
         # Estimate gaze
         gaze_x, gaze_y = self._estimate_gaze_from_depth(depth)
@@ -162,7 +163,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         plt.imsave(f"/mnt/jimmys/debug/{timestamp}_gazecrop.png", depth, cmap='plasma')
         return gaze_crop  # optionally return gaze_x, gaze_y too
 
-    def _estimate_gaze_from_depth(self,depthImg, top_percent=0.05):
+    def _estimate_gaze_from_depth(self, depthImg, top_percent=0.05):
         print(f"depth_img shape{depthImg.shape}")
         H, W = depthImg.shape
         N = H * W
