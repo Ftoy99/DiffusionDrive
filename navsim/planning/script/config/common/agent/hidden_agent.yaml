@@ -13,5 +13,5 @@ config:
 
   latent: False
 
-checkpoint_path: /mnt/jimmys/DiffusionDrive/weights/diffusiondrive_navsim_88p1_PDMS.pth
+checkpoint_path: null
 lr: 6e-4
