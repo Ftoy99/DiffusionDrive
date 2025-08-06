@@ -109,7 +109,7 @@ class V3TransfuserModel(nn.Module):
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
         print(f"Shape of gaze before processing {gaze_feature.shape}")
         gaze_feature_processed = self._gaze_backbone(gaze_feature)
-        print(f"Shape of gaze after processing {gaze_feature_processed.shape}")
+        # print(f"Shape of gaze after processing {gaze_feature_processed.shape}")
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
