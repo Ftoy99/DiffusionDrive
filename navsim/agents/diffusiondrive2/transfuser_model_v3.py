@@ -139,7 +139,7 @@ class V3TransfuserModel(nn.Module):
         tokens = []
         size = gaze_feature_backbone[0].shape[2:]
         for i, feat in enumerate(gaze_feature_backbone):
-            feat = F.interpolate(feat, size=(size, size), mode='bilinear', align_corners=False) # fix spatial
+            feat = F.interpolate(feat, size=size, mode='bilinear', align_corners=False) # fix spatial
             feat = self.gaze_channel_align[i](feat)  # fix channels
             B, C, H, W = feat.shape
             tok = feat.view(B, C, H * W).permute(0, 2, 1)
