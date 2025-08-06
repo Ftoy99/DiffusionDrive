@@ -94,7 +94,7 @@ class V3TransfuserModel(nn.Module):
             config=config,
         )
         self.bev_proj = nn.Sequential(
-            *linear_relu_ln(256, 1, 1, 320),
+            *linear_relu_ln(256, 1, 1, 340),
         )
 
         # Gaze stuff
