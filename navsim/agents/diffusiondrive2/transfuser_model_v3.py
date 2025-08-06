@@ -102,11 +102,11 @@ class V3TransfuserModel(nn.Module):
         self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
                                                 features_only=True)  # Resnet18
         self.gaze_channel_align = nn.ModuleList([
-            nn.Conv2d(64, 64, 1),  # for 64x72x72
-            nn.Conv2d(64, 64, 1),  # for 64x36x36
-            nn.Conv2d(128, 64, 1),  # for 128x18x18
-            nn.Conv2d(256, 64, 1),  # for 256x9x9
-            nn.Conv2d(512, 64, 1),  # for 512x5x5
+            nn.Conv2d(64, 256, 1),  # for 64x72x72
+            nn.Conv2d(64, 256, 1),  # for 64x36x36
+            nn.Conv2d(128, 256, 1),  # for 128x18x18
+            nn.Conv2d(256, 256, 1),  # for 256x9x9
+            nn.Conv2d(512, 256, 1),  # for 512x5x5
         ])
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
