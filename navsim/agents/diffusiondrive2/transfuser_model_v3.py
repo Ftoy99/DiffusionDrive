@@ -124,26 +124,12 @@ class V3TransfuserModel(nn.Module):
 
         # Fuse resnet features for gaze
         tokens = []
-        size = gaze_feature_backbone[0].shape[2:]
         for i, feat in enumerate(gaze_feature_backbone):
             feat = self.gaze_channel_align[i](feat)  # fix channels
             pooled = F.adaptive_avg_pool2d(feat, output_size=(1, 1))
             # Flatten to [B, 1, C]
             B, C, _, _ = pooled.shape
             tok = pooled.view(B, 1, C)
-            tokens.append(tok)
-        gaze_tokens = torch.cat(tokens, dim=1)
-        print(f"gaze token shape {gaze_tokens.shape}")
-        gaze_feature_backbone = self._gaze_backbone(gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
-
-        # Fuse resnet features for gaze
-        tokens = []
-        size = gaze_feature_backbone[0].shape[2:]
-        for i, feat in enumerate(gaze_feature_backbone):
-            feat = F.interpolate(feat, size=size, mode='bilinear', align_corners=False) # fix spatial
-            feat = self.gaze_channel_align[i](feat)  # fix channels
-            B, C, H, W = feat.shape
-            tok = feat.view(B, C, H * W).permute(0, 2, 1)
             tokens.append(tok)
         gaze_tokens = torch.cat(tokens, dim=1)
         print(f"gaze token shape {gaze_tokens.shape}")
