@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from navsim.agents.diffusiondrive.transfuser_config import TransfuserConfig
+from navsim.agents.diffusiondrive2.transfuser_config import TransfuserConfig
 
 
 class TransfuserBackbone(nn.Module):

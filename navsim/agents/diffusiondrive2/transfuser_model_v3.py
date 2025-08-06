@@ -3,9 +3,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import copy
-from navsim.agents.diffusiondrive.transfuser_config import TransfuserConfig
-from navsim.agents.diffusiondrive.transfuser_backbone import TransfuserBackbone
-from navsim.agents.diffusiondrive.transfuser_features import BoundingBox2DIndex
+from navsim.agents.diffusiondrive2.transfuser_config import TransfuserConfig
+from navsim.agents.diffusiondrive2.transfuser_backbone import TransfuserBackbone
+from navsim.agents.diffusiondrive2.transfuser_features import BoundingBox2DIndex
 from navsim.common.enums import StateSE2Index
 from diffusers.schedulers import DDIMScheduler
 from navsim.agents.diffusiondrive.modules.conditional_unet1d import SinusoidalPosEmb
@@ -14,6 +14,7 @@ from navsim.agents.diffusiondrive.modules.blocks import linear_relu_ln, bias_ini
     GridSampleCrossBEVAttention
 from navsim.agents.diffusiondrive.modules.multimodal_loss import LossComputer
 from typing import Dict
+import timm
 
 
 class V3TransfuserModel(nn.Module):
@@ -34,6 +35,9 @@ class V3TransfuserModel(nn.Module):
 
         self._config = config
         self._backbone = TransfuserBackbone(config)
+
+        self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
+                                                features_only=True)  # Resnet18
 
         self._keyval_embedding = nn.Embedding(8 ** 2 + 1, config.tf_d_model)  # 8x8 feature grid + trajectory
         self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)
@@ -95,16 +99,17 @@ class V3TransfuserModel(nn.Module):
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
-
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
-        print(f"Faze features {type(gaze_feature)}")
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]
 
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
+        print(f"Shape of gaze before processing {gaze_feature.shape}")
+        gaze_feature_processed = self._gaze_backbone(gaze_feature)
+        print(f"Shape of gaze after processing {gaze_feature_processed.shape}")
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
@@ -114,8 +119,10 @@ class V3TransfuserModel(nn.Module):
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
 
+        print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
         keyval = torch.concatenate([bev_feature, status_encoding[:, None]], dim=1)
         keyval += self._keyval_embedding.weight[None, ...]
+        print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
 
         concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
                                                                              concat_cross_bev_shape[1])

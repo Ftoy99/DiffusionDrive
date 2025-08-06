@@ -15,6 +15,7 @@ class TransfuserConfig:
 
     image_architecture: str = "resnet34"
     lidar_architecture: str = "resnet34"
+    gaze_architecture: str = "resnet18"
     bkb_path: str = "/home/users/bencheng.liao/.cache/huggingface/hub/checkpoints/resnet34.a1_in1k/pytorch_model.bin"
     plan_anchor_path: str = "/mnt/jimmys/DiffusionDrive/weights/kmeans_navsim_traj_20.npy"
 
