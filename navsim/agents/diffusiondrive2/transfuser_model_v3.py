@@ -99,6 +99,7 @@ class V3TransfuserModel(nn.Module):
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
+        print(f"Faze features {type(gaze_feature)}")
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]
