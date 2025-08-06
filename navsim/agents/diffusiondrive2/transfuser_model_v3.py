@@ -36,6 +36,9 @@ class V3TransfuserModel(nn.Module):
         self._config = config
         self._backbone = TransfuserBackbone(config)
 
+        self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
+                                                features_only=True)  # Resnet18
+
         self._keyval_embedding = nn.Embedding(8 ** 2 + 1, config.tf_d_model)  # 8x8 feature grid + trajectory
         self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)
 
@@ -124,6 +127,19 @@ class V3TransfuserModel(nn.Module):
         size = gaze_feature_backbone[0].shape[2:]
         for i, feat in enumerate(gaze_feature_backbone):
             feat = F.interpolate(feat, size=size, mode='bilinear', align_corners=False) # fix spatial
+            feat = self.gaze_channel_align[i](feat)  # fix channels
+            B, C, H, W = feat.shape
+            tok = feat.view(B, C, H * W).permute(0, 2, 1)
+            tokens.append(tok)
+        gaze_tokens = torch.cat(tokens, dim=1)
+        print(f"gaze token shape {gaze_tokens.shape}")
+        gaze_feature_backbone = self._gaze_backbone(gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
+
+        # Fuse resnet features for gaze
+        tokens = []
+        size = gaze_feature_backbone[0].shape[2:]
+        for i, feat in enumerate(gaze_feature_backbone):
+            feat = F.interpolate(feat, size=(size, size), mode='bilinear', align_corners=False) # fix spatial
             feat = self.gaze_channel_align[i](feat)  # fix channels
             B, C, H, W = feat.shape
             tok = feat.view(B, C, H * W).permute(0, 2, 1)
