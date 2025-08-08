@@ -59,7 +59,7 @@ class AbstractAgent(torch.nn.Module, ABC):
         """
         raise NotImplementedError("No target builders. Agent does not support training.")
 
-    def compute_trajectory(self, agent_input: AgentInput) -> Trajectory:
+    def  compute_trajectory(self, agent_input: AgentInput) -> Trajectory:
         """
         Computes the ego vehicle trajectory.
         :param current_input: Dataclass with agent inputs.
