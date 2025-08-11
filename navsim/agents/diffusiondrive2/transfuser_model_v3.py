@@ -374,6 +374,7 @@ class CustomTransformerDecoderLayer(nn.Module):
                 status_encoding,
                 global_img=None):
         traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape)
+
         traj_feature = traj_feature + self.dropout(
             self.cross_agent_attention(traj_feature, agents_query, agents_query)[0])
         traj_feature = self.norm1(traj_feature)

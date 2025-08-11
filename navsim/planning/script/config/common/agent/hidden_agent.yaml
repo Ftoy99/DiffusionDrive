@@ -13,5 +13,5 @@ config:
 
   latent: False
 
-checkpoint_path: null
+checkpoint_path: /mnt/jimmys/DiffusionDrive/navsim/exp/training_hidden_agent_15_gaze/2025.08.11.09.52.00/lightning_logs/version_0/checkpoints/10e.ckpt
 lr: 6e-4
