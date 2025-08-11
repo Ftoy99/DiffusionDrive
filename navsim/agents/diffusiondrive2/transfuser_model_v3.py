@@ -115,7 +115,7 @@ class V3TransfuserModel(nn.Module):
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
         if self.training:
-            drop_prob = 0.15  # 30% of the time, no gaze
+            drop_prob = 0.15
             if torch.rand(()) < drop_prob:
                 print("Training without gaze")
                 gaze_feature = torch.zeros_like(gaze_feature)
