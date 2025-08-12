@@ -23,7 +23,7 @@ class HiddenCallback(pl.Callback):
 
     def __init__(
         self,
-        config: TransfuserConfig,
+        config: HiddenConfig,
         num_plots: int = 3,
         num_rows: int = 2,
         num_columns: int = 2,
@@ -177,7 +177,7 @@ def dict_to_device(dict: Dict[str, torch.Tensor], device: Union[torch.device, st
     return dict
 
 
-def semantic_map_to_rgb(semantic_map: npt.NDArray[np.int64], config: TransfuserConfig) -> npt.NDArray[np.uint8]:
+def semantic_map_to_rgb(semantic_map: npt.NDArray[np.int64], config: HiddenConfig) -> npt.NDArray[np.uint8]:
     """
     Convert semantic map to RGB image.
     :param semantic_map: numpy array of segmentation map (multi-channel)
@@ -210,7 +210,7 @@ def lidar_map_to_rgb(
     pred_agent_states: npt.NDArray[np.float32],
     trajectory: npt.NDArray[np.float32],
     pred_trajectory: npt.NDArray[np.float32],
-    config: TransfuserConfig,
+    config: HiddenConfig,
 ) -> npt.NDArray[np.uint8]:
     """
     Converts lidar histogram map with predictions and targets to RGB.
@@ -263,7 +263,7 @@ def debug_lidar_map_to_rgb(
     pred_agent_states: npt.NDArray[np.float32],
     trajectory: npt.NDArray[np.float32],
     pred_trajectory: npt.NDArray[np.float32],
-    config: TransfuserConfig,
+    config: HiddenConfig,
 ) -> npt.NDArray[np.uint8]:
     """
     Converts lidar histogram map with predictions and targets to RGB.

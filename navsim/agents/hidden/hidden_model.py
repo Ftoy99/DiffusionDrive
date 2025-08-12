@@ -447,7 +447,7 @@ class CustomTransformerDecoder(nn.Module):
 class TrajectoryHead(nn.Module):
     """Trajectory prediction head."""
 
-    def __init__(self, num_poses: int, d_ffn: int, d_model: int, plan_anchor_path: str, config: TransfuserConfig):
+    def __init__(self, num_poses: int, d_ffn: int, d_model: int, plan_anchor_path: str, config: HiddenConfig):
         """
         Initializes trajectory head.
         :param num_poses: number of (x,y,θ) poses to predict
