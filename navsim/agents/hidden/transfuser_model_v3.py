@@ -15,6 +15,7 @@ from navsim.agents.hidden.modules.blocks import linear_relu_ln, bias_init_with_p
 from navsim.agents.hidden.modules.multimodal_loss import LossComputer
 from typing import Dict
 import timm
+from transformers import Blip2QFormerModel, Blip2Config, Blip2QFormerConfig
 
 
 class V3TransfuserModel(nn.Module):
@@ -45,6 +46,10 @@ class V3TransfuserModel(nn.Module):
         # usually, the BEV features are variable in size.
         self._bev_downscale = nn.Conv2d(512, config.tf_d_model, kernel_size=1)
         self._status_encoding = nn.Linear(4 + 2 + 2, config.tf_d_model)
+
+        #Qformer
+        self._qformer_config = Blip2QFormerConfig()
+        self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
             nn.Conv2d(
@@ -168,6 +173,8 @@ class V3TransfuserModel(nn.Module):
         # Wtf is this??
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
         query_out = self._tf_decoder(query, keyval)
+        print("Transfromer decode output shape {}".format(query_out.shape))
+        print("Transfromer query embedding output shape {}".format(self._query_embedding.weight.shape))
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
