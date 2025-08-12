@@ -40,7 +40,8 @@ class HiddenModel(nn.Module):
         self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
                                                 features_only=True)  # Resnet18
 
-        self._keyval_embedding = nn.Embedding(8 ** 2 + 1 + 5, config.tf_d_model)  # 8x8 feature grid + trajectory + 5gaze
+        self._keyval_embedding = nn.Embedding(8 ** 2 + 1 + 5,
+                                              config.tf_d_model)  # 8x8 feature grid + trajectory + 5gaze
         self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)
 
         # usually, the BEV features are variable in size.
@@ -158,32 +159,39 @@ class HiddenModel(nn.Module):
 
         keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
-        print(f"concat_cross_bev shape before permute {keyval.shape}")
+        # print(f"concat_cross_bev shape before permute {keyval.shape}") #64, 70, 256
         concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
                                                                              concat_cross_bev_shape[1])
-        print(f"concat_cross_bev shape after permute {concat_cross_bev.shape}")
+        # print(f"concat_cross_bev shape after permute {concat_cross_bev.shape}")#4, 276, 8, 8
         # upsample to the same shape as bev_feature_upscale
 
         concat_cross_bev = F.interpolate(concat_cross_bev, size=bev_spatial_shape, mode='bilinear', align_corners=False)
         # concat concat_cross_bev and cross_bev_feature
-        print(f"Before concat concat_cross_bev shape {concat_cross_bev.shape} cross_bev_feature.shape {cross_bev_feature.shape}")
+        # concat_cross_bev.shape # B, 276, 64, 64
+        # cross_bev_feature.shape # 64, 64, 64, 64
         cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
-        print(f"After concat {cross_bev_feature.shape}")
+        # print(f"After concat {cross_bev_feature.shape}") # 340, 64, 64
         # print(f"Type for things {cross_bev_feature.flatten(-2, -1).permute(0, 2, 1).shape}")
         cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
-        print(f"Final cross_bev_feature shape {cross_bev_feature.shape}")
+        # print(f"Final cross_bev_feature shape {cross_bev_feature.shape}") # B, 256, 64, 64
         # Wtf is this??
         # print(f"shape of keyval at decoder {keyval.shape}") # 70 256
-        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1) # B 31 256
-        query_out = self._tf_decoder(query, keyval) # B 31 256
+        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)  # B 31 256
+        query_out = self._tf_decoder(query, keyval)  # B 31 256
 
+
+        print("bev_feature_upscale bev sematic head {bev_feature_upscale.shape}")
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
+        print(f"trajectory_query {trajectory_query.shape}")
+        print(f"agents_query{agents_query.shape}")
+        print(f"self._query_splits{self._query_splits}")
 
         output: Dict[str, torch.Tensor] = {"bev_semantic_map": bev_semantic_map}
 
+        print("Before trajectory head {bev_feature_upscale.shape}")
         trajectory = self._trajectory_head(trajectory_query, agents_query, cross_bev_feature, bev_spatial_shape,
                                            status_encoding[:, None], targets=targets, global_img=None)
         output.update(trajectory)
