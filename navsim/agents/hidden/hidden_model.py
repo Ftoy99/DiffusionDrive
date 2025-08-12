@@ -135,6 +135,8 @@ class HiddenModel(nn.Module):
         batch_size = status_feature.shape[0]
 
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
+        print(f"bev_feature_upscale shape {bev_feature_upscale.shape}")
+        print(f"bev_feature shape {bev_feature.shape}")
 
         ## Gaze Processing
         # print(f"Shape of gaze before processing {gaze_feature.shape}")
@@ -161,7 +163,7 @@ class HiddenModel(nn.Module):
 
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
-        print(f"bev_feature_upscale shape {bev_feature_upscale.shape}")
+        # print(f"bev_feature_upscale shape {bev_feature_upscale.shape}") # bev_feature_upscale shape torch.Size([64, 64, 64, 64])
         keyval = torch.concatenate([bev_feature, status_encoding[:, None],
                                     gaze_tokens, bev_feature_upscale], dim=1)  # B 65 256
 
