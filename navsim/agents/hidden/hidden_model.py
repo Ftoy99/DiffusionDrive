@@ -171,10 +171,9 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
         # Wtf is this??
-        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
-        query_out = self._tf_decoder(query, keyval)
-        print("Transfromer decode output shape {}".format(query_out.shape))
-        print("Transfromer query embedding output shape {}".format(self._query_embedding.weight.shape))
+        print(f"shape of keyval at decoder {keyval.shape}")
+        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1) # B 31 256
+        query_out = self._tf_decoder(query, keyval) # B 31 256
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
