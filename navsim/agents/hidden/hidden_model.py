@@ -3,9 +3,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import copy
-from navsim.agents.hidden.transfuser_config import TransfuserConfig
-from navsim.agents.hidden.transfuser_backbone import TransfuserBackbone
-from navsim.agents.hidden.transfuser_features import BoundingBox2DIndex
+from navsim.agents.hidden.hidden_config import TransfuserConfig
+from navsim.agents.hidden.hidden_backbone import TransfuserBackbone
+from navsim.agents.hidden.hidden_features import BoundingBox2DIndex
 from navsim.common.enums import StateSE2Index
 from diffusers.schedulers import DDIMScheduler
 from navsim.agents.hidden.modules.conditional_unet1d import SinusoidalPosEmb

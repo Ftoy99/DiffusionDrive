@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import functools
 from typing import Callable, Optional
 from torch import Tensor
-from navsim.agents.hidden.transfuser_config import TransfuserConfig
+from navsim.agents.hidden.hidden_config import TransfuserConfig
 
 def reduce_loss(loss: Tensor, reduction: str) -> Tensor:
     """Reduce loss as specified.

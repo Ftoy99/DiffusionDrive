@@ -4,8 +4,8 @@ from scipy.optimize import linear_sum_assignment
 import torch
 import torch.nn.functional as F
 
-from navsim.agents.hidden.transfuser_config import TransfuserConfig
-from navsim.agents.hidden.transfuser_features import BoundingBox2DIndex
+from navsim.agents.hidden.hidden_config import TransfuserConfig
+from navsim.agents.hidden.hidden_features import BoundingBox2DIndex
 
 
 def transfuser_loss(
