@@ -7,13 +7,13 @@ from torch.optim.lr_scheduler import LRScheduler
 import pytorch_lightning as pl
 
 from navsim.agents.abstract_agent import AbstractAgent
-from navsim.agents.hidden.hidden_config import TransfuserConfig
+from navsim.agents.hidden.hidden_config import HiddenConfig
 
-from navsim.agents.hidden.hidden_model import V3TransfuserModel as TransfuserModel
+from navsim.agents.hidden.hidden_model import V3TransfuserModel as HiddenModel
 
-from navsim.agents.hidden.hidden_callback import TransfuserCallback
-from navsim.agents.hidden.hidden_loss import transfuser_loss
-from navsim.agents.hidden.hidden_features import TransfuserFeatureBuilder, TransfuserTargetBuilder
+from navsim.agents.hidden.hidden_callback import HiddenCallback
+from navsim.agents.hidden.hidden_loss import hidden_loss
+from navsim.agents.hidden.hidden_features import HiddenFeatureBuilder, HiddenTargetBuilder
 from navsim.planning.training.abstract_feature_target_builder import AbstractFeatureBuilder, AbstractTargetBuilder
 from navsim.agents.hidden.modules.scheduler import WarmupCosLR
 from omegaconf import DictConfig, OmegaConf, open_dict

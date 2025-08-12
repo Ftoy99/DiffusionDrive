@@ -21,7 +21,7 @@ from transformers import Blip2QFormerModel, Blip2QFormerConfig
 class HiddenModel(nn.Module):
     """Torch module for Transfuser."""
 
-    def __init__(self, config: TransfuserConfig):
+    def __init__(self, config: HiddenConfig):
         """
         Initializes TransFuser torch module.
         :param config: global config dataclass of TransFuser.
