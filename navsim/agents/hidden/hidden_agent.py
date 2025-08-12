@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 from navsim.agents.abstract_agent import AbstractAgent
 from navsim.agents.hidden.hidden_config import HiddenConfig
 
-from navsim.agents.hidden.hidden_model import V3TransfuserModel as HiddenModel
+from navsim.agents.hidden.hidden_model import HiddenModel
 
 from navsim.agents.hidden.hidden_callback import HiddenCallback
 from navsim.agents.hidden.hidden_loss import hidden_loss
