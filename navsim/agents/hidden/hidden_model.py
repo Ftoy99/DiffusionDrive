@@ -49,7 +49,7 @@ class HiddenModel(nn.Module):
         self._status_encoding = nn.Linear(4 + 2 + 2, config.tf_d_model)
 
         # #Qformer
-        self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model)
+        self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model,num_hidden_layers=4,num_attention_heads=4)
         self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
