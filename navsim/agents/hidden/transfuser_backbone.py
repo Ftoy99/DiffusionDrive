@@ -10,13 +10,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from navsim.agents.hidden.hidden_config import TransfuserConfig
+from navsim.agents.hidden.hidden_config import HiddenConfig
 
 
 class TransfuserBackbone(nn.Module):
     """Multi-scale Fusion Transformer for image + LiDAR feature fusion."""
 
-    def __init__(self, config: TransfuserConfig):
+    def __init__(self, config: HiddenConfig):
 
         super().__init__()
         self.config = config
