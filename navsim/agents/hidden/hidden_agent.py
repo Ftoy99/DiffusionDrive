@@ -151,7 +151,7 @@ class HiddenAgent(AbstractAgent):
             params = []
             pgs = [[] for _ in paramwise_cfg['name']]
 
-            for k, v in self._transfuser_model.named_parameters():
+            for k, v in self._hidden_model.named_parameters():
                 in_param_group = True
                 for i, (pattern, pg_cfg) in enumerate(paramwise_cfg['name'].items()):
                     if pattern in k:
@@ -160,7 +160,7 @@ class HiddenAgent(AbstractAgent):
                 if in_param_group:
                     params.append(v)
         else:
-            params = self._transfuser_model.parameters()
+            params = self._hidden_model.parameters()
 
         optimizer = build_from_configs(optim, optimizer_cfg, params=params)
         # import ipdb; ipdb.set_trace()
