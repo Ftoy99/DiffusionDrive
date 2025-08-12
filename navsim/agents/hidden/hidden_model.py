@@ -43,7 +43,7 @@ class HiddenModel(nn.Module):
         self._keyval_embedding = nn.Embedding(8 ** 2 + 1 + 5,
                                               config.tf_d_model)  # 8x8 feature grid + trajectory + 5gaze
 
-        self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model) # [1,30]
+        self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)  # [1,30]
 
         # usually, the BEV features are variable in size.
         self._bev_downscale = nn.Conv2d(512, config.tf_d_model, kernel_size=1)
@@ -127,7 +127,7 @@ class HiddenModel(nn.Module):
         # Simulate dropping
         drop_prob = 0.15
         if torch.rand(()) < drop_prob:
-            #print("Training without gaze")
+            # print("Training without gaze")
             gaze_feature = torch.zeros_like(gaze_feature)
 
         status_feature: torch.Tensor = features["status_feature"]
@@ -135,48 +135,51 @@ class HiddenModel(nn.Module):
         batch_size = status_feature.shape[0]
 
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
+
+        ## Gaze Processing
         # print(f"Shape of gaze before processing {gaze_feature.shape}")
         gaze_feature_backbone = self._gaze_backbone(gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
-
-        # Fuse resnet features for gaze
         aligned_feats = []
         for i, feat in enumerate(gaze_feature_backbone[-3:]):
             feat = self.gaze_channel_align[i](feat)  # fix channels
-            feat = F.interpolate(feat, size=(5,5), mode='bilinear', align_corners=False)
+            feat = F.interpolate(feat, size=(5, 5), mode='bilinear', align_corners=False)
             aligned_feats.append(feat)
         fused_feat = torch.cat(aligned_feats, dim=1)  # [B, 256*5, 5, 5]
         fused_feat = self._fuse_gaze(fused_feat)
         gaze_tokens = fused_feat.flatten(2).permute(0, 2, 1)
-        print(f"gaze tokens shape f{gaze_tokens.shape}")
+        # print(f"gaze tokens shape f{gaze_tokens.shape}") # 64, 25, 256
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
 
         concat_cross_bev_shape = bev_feature.shape[2:]
+
+        ## Bev Processing
         bev_feature = self._bev_downscale(bev_feature).flatten(-2, -1)
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
 
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
-        keyval = torch.concatenate([bev_feature, status_encoding[:, None], gaze_tokens], dim=1)  # B 65 256
+        print(f"bev_feature_upscale shape {bev_feature_upscale.shape}")
+        keyval = torch.concatenate([bev_feature, status_encoding[:, None], gaze_tokens , bev_feature_upscale], dim=1)  # B 65 256
 
-        keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
+        # keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
         # print(f"concat_cross_bev shape before permute {keyval.shape}") #64, 70, 256
-        concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
-                                                                             concat_cross_bev_shape[1])
+        # concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
+        #                                                                      concat_cross_bev_shape[1])
         # print(f"concat_cross_bev shape after permute {concat_cross_bev.shape}")#4, 276, 8, 8
         # upsample to the same shape as bev_feature_upscale
 
-        concat_cross_bev = F.interpolate(concat_cross_bev, size=bev_spatial_shape, mode='bilinear', align_corners=False)
+        # concat_cross_bev = F.interpolate(concat_cross_bev, size=bev_spatial_shape, mode='bilinear', align_corners=False)
         # concat concat_cross_bev and cross_bev_feature
         # concat_cross_bev.shape # B, 276, 64, 64
         # cross_bev_feature.shape # 64, 64, 64, 64
-        cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
+        # cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
         # print(f"After concat {cross_bev_feature.shape}") # 340, 64, 64
         # print(f"Type for things {cross_bev_feature.flatten(-2, -1).permute(0, 2, 1).shape}")
-        cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
+        # cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
         # print(f"Final cross_bev_feature shape {cross_bev_feature.shape}") # B, 256, 64, 64
