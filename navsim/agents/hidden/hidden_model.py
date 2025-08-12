@@ -47,6 +47,8 @@ class HiddenModel(nn.Module):
 
         # usually, the BEV features are variable in size.
         self._bev_downscale = nn.Conv2d(512, config.tf_d_model, kernel_size=1)
+        self._lidar_feature_upscale = nn.Conv2d(64, config.tf_d_model, kernel_size=1)
+
         self._status_encoding = nn.Linear(4 + 2 + 2, config.tf_d_model)
 
         # #Qformer
@@ -127,7 +129,7 @@ class HiddenModel(nn.Module):
         # Simulate dropping
         drop_prob = 0.15
         if torch.rand(()) < drop_prob:
-            # print("Training without gaze")
+            # print("Running without gaze")
             gaze_feature = torch.zeros_like(gaze_feature)
 
         status_feature: torch.Tensor = features["status_feature"]
@@ -135,8 +137,8 @@ class HiddenModel(nn.Module):
         batch_size = status_feature.shape[0]
 
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
-        print(f"bev_feature_upscale shape {bev_feature_upscale.shape}")
-        print(f"bev_feature shape {bev_feature.shape}")
+        # print(f"bev_feature_upscale shape {bev_feature_upscale.shape}") 64, 64, 64, 64
+        # print(f"bev_feature shape {bev_feature.shape}") 64, 512, 8, 8
 
         ## Gaze Processing
         # print(f"Shape of gaze before processing {gaze_feature.shape}")
@@ -161,11 +163,17 @@ class HiddenModel(nn.Module):
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
 
+        ## Lidar Feature Processing
+        lidar_feature_upscale = self._lidar_feature_upscale(bev_feature_upscale).flatten(-2,-1)
+        lidar_feature_upscale = lidar_feature_upscale.permute(0, 2, 1)
+
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
         # print(f"bev_feature_upscale shape {bev_feature_upscale.shape}") # bev_feature_upscale shape torch.Size([64, 64, 64, 64])
         keyval = torch.concatenate([bev_feature, status_encoding[:, None],
-                                    gaze_tokens, bev_feature_upscale], dim=1)  # B 65 256
+                                    gaze_tokens, lidar_feature_upscale], dim=1)  # B 65 256
+
+        print(f"keyval.shape {keyval.shape}")
 
         # keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
