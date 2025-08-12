@@ -49,8 +49,8 @@ class HiddenModel(nn.Module):
         self._status_encoding = nn.Linear(4 + 2 + 2, config.tf_d_model)
 
         # #Qformer
-        # self._qformer_config = Blip2QFormerConfig()
-        # self._qformer = Blip2QFormerModel(self._qformer_config)
+        self._qformer_config = Blip2QFormerConfig()
+        self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
             nn.Conv2d(
@@ -177,17 +177,21 @@ class HiddenModel(nn.Module):
                                                                                  bev_spatial_shape[1])
         # print(f"Final cross_bev_feature shape {cross_bev_feature.shape}") # B, 256, 64, 64
         # Wtf is this??
-        # print(f"shape of keyval at decoder {keyval.shape}") # 70 256
-        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)  # B 31 256
-        query_out = self._tf_decoder(query, keyval)  # B 31 256
+        # # print(f"shape of keyval at decoder {keyval.shape}") # 70 256
+        query_embeds = self._query_embedding.weight.unsqueeze(0).repeat(batch_size, 1, 1)
+        # query_out = self._tf_decoder(query, keyval)  # B 31 256
 
+        query_out = self._qformer(
+            query_embeds=query_embeds,
+            encoder_hidden_states=keyval
+        ).last_hidden_state  # [B, num_queries, hidden_dim]
 
         print("bev_feature_upscale bev sematic head {bev_feature_upscale.shape}")
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
-        print(f"trajectory_query {trajectory_query.shape}")
-        print(f"agents_query{agents_query.shape}")
-        print(f"self._query_splits{self._query_splits}")
+        # print(f"trajectory_query {trajectory_query.shape}") B,1 , 256
+        # print(f"agents_query{agents_query.shape}") # B,30 , 256
+        # print(f"self._query_splits{self._query_splits}") # [1,30]
 
         output: Dict[str, torch.Tensor] = {"bev_semantic_map": bev_semantic_map}
 
