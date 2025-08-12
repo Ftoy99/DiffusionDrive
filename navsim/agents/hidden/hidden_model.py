@@ -49,7 +49,8 @@ class HiddenModel(nn.Module):
         self._status_encoding = nn.Linear(4 + 2 + 2, config.tf_d_model)
 
         # #Qformer
-        self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model,num_hidden_layers=4,num_attention_heads=4)
+        self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model, num_hidden_layers=4,
+                                                  num_attention_heads=4,encoder_hidden_size=256)
         self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
@@ -77,15 +78,15 @@ class HiddenModel(nn.Module):
             ),
         )
 
-        tf_decoder_layer = nn.TransformerDecoderLayer(
-            d_model=config.tf_d_model,
-            nhead=config.tf_num_head,
-            dim_feedforward=config.tf_d_ffn,
-            dropout=config.tf_dropout,
-            batch_first=True,
-        )
-
-        self._tf_decoder = nn.TransformerDecoder(tf_decoder_layer, config.tf_num_layers)
+        # tf_decoder_layer = nn.TransformerDecoderLayer(
+        #     d_model=config.tf_d_model,
+        #     nhead=config.tf_num_head,
+        #     dim_feedforward=config.tf_d_ffn,
+        #     dropout=config.tf_dropout,
+        #     batch_first=True,
+        # )
+        #
+        # self._tf_decoder = nn.TransformerDecoder(tf_decoder_layer, config.tf_num_layers)
         self._agent_head = AgentHead(
             num_agents=config.num_bounding_boxes,
             d_ffn=config.tf_d_ffn,
