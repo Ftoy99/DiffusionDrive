@@ -4,18 +4,18 @@ from scipy.optimize import linear_sum_assignment
 import torch
 import torch.nn.functional as F
 
-from navsim.agents.hidden.hidden_config import TransfuserConfig
+from navsim.agents.hidden.hidden_config import HiddenConfig
 from navsim.agents.hidden.hidden_features import BoundingBox2DIndex
 
 
-def transfuser_loss(
-    targets: Dict[str, torch.Tensor], predictions: Dict[str, torch.Tensor], config: TransfuserConfig
+def hidden_loss(
+    targets: Dict[str, torch.Tensor], predictions: Dict[str, torch.Tensor], config: HiddenConfig
 ):
     """
-    Helper function calculating complete loss of Transfuser
+    Helper function calculating complete loss of Hidden
     :param targets: dictionary of name tensor pairings
     :param predictions: dictionary of name tensor pairings
-    :param config: global Transfuser config
+    :param config: global Hidden config
     :return: combined loss value
     """
     # import ipdb; ipdb.set_trace()
@@ -54,13 +54,13 @@ def transfuser_loss(
 
 
 def _agent_loss(
-    targets: Dict[str, torch.Tensor], predictions: Dict[str, torch.Tensor], config: TransfuserConfig
+    targets: Dict[str, torch.Tensor], predictions: Dict[str, torch.Tensor], config: HiddenConfig
 ):
     """
     Hungarian matching loss for agent detection
     :param targets: dictionary of name tensor pairings
     :param predictions: dictionary of name tensor pairings
-    :param config: global Transfuser config
+    :param config: global Hidden config
     :return: detection loss
     """
 

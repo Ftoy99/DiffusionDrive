@@ -31,12 +31,12 @@ def build_from_configs(obj, cfg: DictConfig, **kwargs):
     return getattr(obj, type)(**cfg, **kwargs)
 
 
-class TransfuserAgent(AbstractAgent):
+class HiddenAgent(AbstractAgent):
     """Agent interface for TransFuser baseline."""
 
     def __init__(
             self,
-            config: TransfuserConfig,
+            config: HiddenConfig,
             lr: float,
             checkpoint_path: Optional[str] = None,
     ):
@@ -52,7 +52,7 @@ class TransfuserAgent(AbstractAgent):
         self._lr = lr
 
         self._checkpoint_path = checkpoint_path
-        self._transfuser_model = TransfuserModel(config)
+        self._hidden_model = HiddenModel(config)
         self.init_from_pretrained()
 
     def init_from_pretrained(self):
@@ -99,16 +99,16 @@ class TransfuserAgent(AbstractAgent):
 
     def get_target_builders(self) -> List[AbstractTargetBuilder]:
         """Inherited, see superclass."""
-        return [TransfuserTargetBuilder(config=self._config)]
+        return [HiddenTargetBuilder(config=self._config)]
 
     def get_feature_builders(self) -> List[AbstractFeatureBuilder]:
         """Inherited, see superclass."""
-        return [TransfuserFeatureBuilder(config=self._config)]
+        return [HiddenFeatureBuilder(config=self._config)]
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
         """Inherited, see superclass."""
-        return self._transfuser_model(features, targets=targets)
+        return self._hidden_model(features, targets=targets)
 
     def compute_loss(
             self,
@@ -117,14 +117,14 @@ class TransfuserAgent(AbstractAgent):
             predictions: Dict[str, torch.Tensor],
     ) -> torch.Tensor:
         """Inherited, see superclass."""
-        return transfuser_loss(targets, predictions, self._config)
+        return hidden_loss(targets, predictions, self._config)
 
     def get_optimizers(self) -> Union[Optimizer, Dict[str, Union[Optimizer, LRScheduler]]]:
         """Inherited, see superclass."""
         return self.get_coslr_optimizers()
 
     def get_step_lr_optimizers(self):
-        optimizer = torch.optim.Adam(self._transfuser_model.parameters(), lr=self._lr,
+        optimizer = torch.optim.Adam(self._hidden_model.parameters(), lr=self._lr,
                                      weight_decay=self._config.weight_decay)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=self._config.lr_steps, gamma=0.1)
         return {'optimizer': optimizer, 'lr_scheduler': scheduler}
@@ -187,4 +187,4 @@ class TransfuserAgent(AbstractAgent):
 
     def get_training_callbacks(self) -> List[pl.Callback]:
         """Inherited, see superclass."""
-        return [TransfuserCallback(self._config)]
+        return [HiddenCallback(self._config)]

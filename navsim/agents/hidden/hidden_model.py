@@ -3,8 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import copy
-from navsim.agents.hidden.hidden_config import TransfuserConfig
-from navsim.agents.hidden.hidden_backbone import TransfuserBackbone
+from navsim.agents.hidden.hidden_config import HiddenConfig
+from navsim.agents.hidden.transfuser_backbone import TransfuserBackbone
 from navsim.agents.hidden.hidden_features import BoundingBox2DIndex
 from navsim.common.enums import StateSE2Index
 from diffusers.schedulers import DDIMScheduler
@@ -15,10 +15,10 @@ from navsim.agents.hidden.modules.blocks import linear_relu_ln, bias_init_with_p
 from navsim.agents.hidden.modules.multimodal_loss import LossComputer
 from typing import Dict
 import timm
-from transformers import Blip2QFormerModel, Blip2Config, Blip2QFormerConfig
+from transformers import Blip2QFormerModel, Blip2QFormerConfig
 
 
-class V3TransfuserModel(nn.Module):
+class HiddenModel(nn.Module):
     """Torch module for Transfuser."""
 
     def __init__(self, config: TransfuserConfig):

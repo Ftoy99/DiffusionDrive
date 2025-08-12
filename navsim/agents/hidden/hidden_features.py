@@ -27,7 +27,7 @@ from navsim.planning.training.abstract_feature_target_builder import AbstractFea
 from navsim.agents.hidden.depth_gaze import depth_inf
 
 
-class TransfuserFeatureBuilder(AbstractFeatureBuilder):
+class HiddenFeatureBuilder(AbstractFeatureBuilder):
     """Input feature builder for TransFuser."""
 
     def __init__(self, config: TransfuserConfig):
@@ -169,7 +169,7 @@ class TransfuserFeatureBuilder(AbstractFeatureBuilder):
         return gaze_x.item(), gaze_y.item()
 
 
-class TransfuserTargetBuilder(AbstractTargetBuilder):
+class HiddenTargetBuilder(AbstractTargetBuilder):
     """Output target builder for TransFuser."""
 
     def __init__(self, config: TransfuserConfig):

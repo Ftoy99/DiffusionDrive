@@ -8,7 +8,7 @@ from nuplan.planning.simulation.trajectory.trajectory_sampling import Trajectory
 
 
 @dataclass
-class TransfuserConfig:
+class HiddenConfig:
     """Global TransFuser config."""
 
     trajectory_sampling: TrajectorySampling = TrajectorySampling(time_horizon=4, interval_length=0.5)
