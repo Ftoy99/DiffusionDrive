@@ -124,7 +124,7 @@ class HiddenModel(nn.Module):
         if self.training:
             drop_prob = 0.15
             if torch.rand(()) < drop_prob:
-                print("Training without gaze")
+                #print("Training without gaze")
                 gaze_feature = torch.zeros_like(gaze_feature)
         status_feature: torch.Tensor = features["status_feature"]
 
