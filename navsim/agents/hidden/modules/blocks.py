@@ -1,9 +1,7 @@
-from typing import List, Optional, Tuple
 import math
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.cuda.amp.autocast_mode import autocast
 
 
 def linear_relu_ln(embed_dims, in_loops, out_loops, input_dims=None):

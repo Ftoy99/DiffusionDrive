@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import functools
 from typing import Callable, Optional
 from torch import Tensor
-from navsim.agents.hidden.hidden_config import TransfuserConfig
+from navsim.agents.hidden.hidden_config import HiddenConfig
 
 def reduce_loss(loss: Tensor, reduction: str) -> Tensor:
     """Reduce loss as specified.
@@ -113,7 +113,7 @@ def py_sigmoid_focal_loss(pred,
 
 
 class LossComputer(nn.Module):
-    def __init__(self,config: TransfuserConfig):
+    def __init__(self,config: HiddenConfig):
         self._config = config
         super(LossComputer, self).__init__()
         # self.focal_loss = FocalLoss(use_sigmoid=True, gamma=2.0, alpha=0.25, reduction='mean', loss_weight=1.0, activated=False)
