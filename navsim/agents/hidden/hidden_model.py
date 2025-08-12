@@ -50,7 +50,7 @@ class HiddenModel(nn.Module):
 
         # #Qformer
         self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model, num_hidden_layers=4,
-                                                  num_attention_heads=4,encoder_hidden_size=256)
+                                                  num_attention_heads=4, encoder_hidden_size=256)
         self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
@@ -187,16 +187,13 @@ class HiddenModel(nn.Module):
             encoder_hidden_states=keyval
         ).last_hidden_state  # [B, num_queries, hidden_dim]
 
-        print(f"bev_feature_upscale bev sematic head {bev_feature_upscale.shape}")
+        # print(f"bev_feature_upscale bev sematic head {bev_feature_upscale.shape}") # B 64 64 64
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
-        # print(f"trajectory_query {trajectory_query.shape}") B,1 , 256
-        # print(f"agents_query{agents_query.shape}") # B,30 , 256
-        # print(f"self._query_splits{self._query_splits}") # [1,30]
 
         output: Dict[str, torch.Tensor] = {"bev_semantic_map": bev_semantic_map}
 
-        print(f"Before trajectory head {bev_feature_upscale.shape}")
+        # print(f"Before trajectory head {bev_feature_upscale.shape}") # B 64 64 64
         trajectory = self._trajectory_head(trajectory_query, agents_query, cross_bev_feature, bev_spatial_shape,
                                            status_encoding[:, None], targets=targets, global_img=None)
         output.update(trajectory)
