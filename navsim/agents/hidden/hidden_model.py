@@ -166,6 +166,7 @@ class HiddenModel(nn.Module):
         ## Lidar Feature Processing
         lidar_feature_upscale = self._lidar_feature_upscale(bev_feature_upscale).flatten(-2,-1)
         lidar_feature_upscale = lidar_feature_upscale.permute(0, 2, 1)
+        print(f"lidar_feature_upscale {lidar_feature_upscale.shape}")
 
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
