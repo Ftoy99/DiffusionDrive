@@ -47,9 +47,9 @@ class HiddenModel(nn.Module):
         self._bev_downscale = nn.Conv2d(512, config.tf_d_model, kernel_size=1)
         self._status_encoding = nn.Linear(4 + 2 + 2, config.tf_d_model)
 
-        #Qformer
-        self._qformer_config = Blip2QFormerConfig()
-        self._qformer = Blip2QFormerModel(self._qformer_config)
+        # #Qformer
+        # self._qformer_config = Blip2QFormerConfig()
+        # self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
             nn.Conv2d(
