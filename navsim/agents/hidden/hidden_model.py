@@ -162,7 +162,8 @@ class HiddenModel(nn.Module):
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
         print(f"bev_feature_upscale shape {bev_feature_upscale.shape}")
-        keyval = torch.concatenate([bev_feature, status_encoding[:, None], gaze_tokens , bev_feature_upscale], dim=1)  # B 65 256
+        keyval = torch.concatenate([bev_feature, status_encoding[:, None],
+                                    gaze_tokens, bev_feature_upscale], dim=1)  # B 65 256
 
         # keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
