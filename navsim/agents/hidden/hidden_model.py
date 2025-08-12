@@ -42,7 +42,8 @@ class HiddenModel(nn.Module):
 
         self._keyval_embedding = nn.Embedding(8 ** 2 + 1 + 5,
                                               config.tf_d_model)  # 8x8 feature grid + trajectory + 5gaze
-        self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)
+
+        self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model) # [1,30]
 
         # usually, the BEV features are variable in size.
         self._bev_downscale = nn.Conv2d(512, config.tf_d_model, kernel_size=1)
@@ -108,24 +109,27 @@ class HiddenModel(nn.Module):
 
         self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
                                                 features_only=True)  # Resnet18
+
         self.gaze_channel_align = nn.ModuleList([
-            nn.Conv2d(64, 256, 1),  # for 64x72x72
-            nn.Conv2d(64, 256, 1),  # for 64x36x36
             nn.Conv2d(128, 256, 1),  # for 128x18x18
             nn.Conv2d(256, 256, 1),  # for 256x9x9
             nn.Conv2d(512, 256, 1),  # for 512x5x5
         ])
+
+        self._fuse_gaze = nn.Conv2d(256 * 3, 256, kernel_size=1)
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
-        if self.training:
-            drop_prob = 0.15
-            if torch.rand(()) < drop_prob:
-                #print("Training without gaze")
-                gaze_feature = torch.zeros_like(gaze_feature)
+
+        # Simulate dropping
+        drop_prob = 0.15
+        if torch.rand(()) < drop_prob:
+            #print("Training without gaze")
+            gaze_feature = torch.zeros_like(gaze_feature)
+
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]
@@ -135,16 +139,15 @@ class HiddenModel(nn.Module):
         gaze_feature_backbone = self._gaze_backbone(gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
 
         # Fuse resnet features for gaze
-        tokens = []
-        for i, feat in enumerate(gaze_feature_backbone):
+        aligned_feats = []
+        for i, feat in enumerate(gaze_feature_backbone[-3:]):
             feat = self.gaze_channel_align[i](feat)  # fix channels
-            pooled = F.adaptive_avg_pool2d(feat, output_size=(1, 1))
-            # Flatten to [B, 1, C]
-            B, C, _, _ = pooled.shape
-            tok = pooled.view(B, 1, C)
-            tokens.append(tok)
-        gaze_tokens = torch.cat(tokens, dim=1)
-        # print(f"gaze token shape {gaze_tokens.shape}")
+            feat = F.interpolate(feat, size=(5,5), mode='bilinear', align_corners=False)
+            aligned_feats.append(feat)
+        fused_feat = torch.cat(aligned_feats, dim=1)  # [B, 256*5, 5, 5]
+        fused_feat = self._fuse_gaze(fused_feat)
+        gaze_tokens = fused_feat.flatten(2).permute(0, 2, 1)
+        print(f"gaze tokens shape f{gaze_tokens.shape}")
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
