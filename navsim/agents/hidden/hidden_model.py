@@ -186,7 +186,7 @@ class HiddenModel(nn.Module):
             encoder_hidden_states=keyval
         ).last_hidden_state  # [B, num_queries, hidden_dim]
 
-        print("bev_feature_upscale bev sematic head {bev_feature_upscale.shape}")
+        print(f"bev_feature_upscale bev sematic head {bev_feature_upscale.shape}")
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
         # print(f"trajectory_query {trajectory_query.shape}") B,1 , 256
@@ -195,7 +195,7 @@ class HiddenModel(nn.Module):
 
         output: Dict[str, torch.Tensor] = {"bev_semantic_map": bev_semantic_map}
 
-        print("Before trajectory head {bev_feature_upscale.shape}")
+        print(f"Before trajectory head {bev_feature_upscale.shape}")
         trajectory = self._trajectory_head(trajectory_query, agents_query, cross_bev_feature, bev_spatial_shape,
                                            status_encoding[:, None], targets=targets, global_img=None)
         output.update(trajectory)
