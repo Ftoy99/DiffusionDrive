@@ -164,17 +164,18 @@ class HiddenModel(nn.Module):
         status_encoding = self._status_encoding(status_feature)
 
         ## Lidar Feature Processing
-        lidar_feature_upscale = self._lidar_feature_upscale(bev_feature_upscale).flatten(-2,-1)
+        lidar_feature_upscale = self._lidar_feature_upscale(bev_feature_upscale).flatten(-2, -1)
         lidar_feature_upscale = lidar_feature_upscale.permute(0, 2, 1)
-        print(f"lidar_feature_upscale {lidar_feature_upscale.shape}")
+        # print(f"lidar_feature_upscale {lidar_feature_upscale.shape}") 4096, 256
 
+        ## Fuse all modalities
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
         # print(f"bev_feature_upscale shape {bev_feature_upscale.shape}") # bev_feature_upscale shape torch.Size([64, 64, 64, 64])
         keyval = torch.concatenate([bev_feature, status_encoding[:, None],
                                     gaze_tokens, lidar_feature_upscale], dim=1)  # B 65 256
 
-        print(f"keyval.shape {keyval.shape}")
+        # print(f"keyval.shape {keyval.shape}") # 4186, 256
 
         # keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
@@ -191,7 +192,7 @@ class HiddenModel(nn.Module):
         # cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
         # print(f"After concat {cross_bev_feature.shape}") # 340, 64, 64
         # print(f"Type for things {cross_bev_feature.flatten(-2, -1).permute(0, 2, 1).shape}")
-        # cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
+        cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
         # print(f"Final cross_bev_feature shape {cross_bev_feature.shape}") # B, 256, 64, 64

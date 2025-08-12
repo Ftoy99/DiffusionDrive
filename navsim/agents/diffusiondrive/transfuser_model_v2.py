@@ -124,8 +124,11 @@ class V2TransfuserModel(nn.Module):
         cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
 
         cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
+        print(f"cross_bev_feature.shape after bev_proj")
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
+        print(f"cross_bev_feature.shape after permute")
+
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
         query_out = self._tf_decoder(query, keyval)
 
