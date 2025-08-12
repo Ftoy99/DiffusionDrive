@@ -158,20 +158,23 @@ class HiddenModel(nn.Module):
 
         keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
-
+        print(f"concat_cross_bev shape before permute {keyval.shape}")
         concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
                                                                              concat_cross_bev_shape[1])
+        print(f"concat_cross_bev shape after permute {concat_cross_bev.shape}")
         # upsample to the same shape as bev_feature_upscale
 
         concat_cross_bev = F.interpolate(concat_cross_bev, size=bev_spatial_shape, mode='bilinear', align_corners=False)
         # concat concat_cross_bev and cross_bev_feature
+        print(f"Before concat concat_cross_bev shape {concat_cross_bev.shape} cross_bev_feature.shape {cross_bev_feature.shape}")
         cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
+        print(f"After concat {cross_bev_feature}")
         # print(f"Type for things {cross_bev_feature.flatten(-2, -1).permute(0, 2, 1).shape}")
         cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
         # Wtf is this??
-        print(f"shape of keyval at decoder {keyval.shape}")
+        # print(f"shape of keyval at decoder {keyval.shape}") # 70 256
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1) # B 31 256
         query_out = self._tf_decoder(query, keyval) # B 31 256
 
