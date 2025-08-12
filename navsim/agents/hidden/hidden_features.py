@@ -30,7 +30,7 @@ from navsim.agents.hidden.depth_gaze import depth_inf
 class HiddenFeatureBuilder(AbstractFeatureBuilder):
     """Input feature builder for TransFuser."""
 
-    def __init__(self, config: TransfuserConfig):
+    def __init__(self, config: HiddenConfig):
         """
         Initializes feature builder.
         :param config: global config dataclass of TransFuser
@@ -172,7 +172,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
 class HiddenTargetBuilder(AbstractTargetBuilder):
     """Output target builder for TransFuser."""
 
-    def __init__(self, config: TransfuserConfig):
+    def __init__(self, config: HiddenConfig):
         """
         Initializes target builder.
         :param config: global config dataclass of TransFuser
@@ -213,7 +213,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         max_agents = self._config.num_bounding_boxes
         agent_states_list: List[npt.NDArray[np.float32]] = []
 
-        def _xy_in_lidar(x: float, y: float, config: TransfuserConfig) -> bool:
+        def _xy_in_lidar(x: float, y: float, config: HiddenConfig) -> bool:
             return (config.lidar_min_x <= x <= config.lidar_max_x) and (config.lidar_min_y <= y <= config.lidar_max_y)
 
         for box, name in zip(annotations.boxes, annotations.names):
