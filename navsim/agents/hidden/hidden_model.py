@@ -168,7 +168,7 @@ class HiddenModel(nn.Module):
         # concat concat_cross_bev and cross_bev_feature
         print(f"Before concat concat_cross_bev shape {concat_cross_bev.shape} cross_bev_feature.shape {cross_bev_feature.shape}")
         cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
-        print(f"After concat {cross_bev_feature}")
+        print(f"After concat {cross_bev_feature.shape}")
         # print(f"Type for things {cross_bev_feature.flatten(-2, -1).permute(0, 2, 1).shape}")
         cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
