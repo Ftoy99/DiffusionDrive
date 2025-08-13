@@ -119,13 +119,14 @@ class HiddenModel(nn.Module):
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
+        drop_prob = 0.15
+        gaze_flag = torch.rand(()) < drop_prob
+        if gaze_flag:
+            print("Training without gaze")
+
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
-        # drop_prob = 0.15
-        # if torch.rand(()) < drop_prob:
-        #     print("Training without gaze")
-        gaze_feature = torch.zeros_like(gaze_feature)
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]
@@ -133,16 +134,17 @@ class HiddenModel(nn.Module):
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
         # print(f"Shape of gaze before processing {gaze_feature.shape}")
 
-        gaze_feature_backbone = self._gaze_backbone(gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
-        tokens = []
-        for i, feat in enumerate(gaze_feature_backbone[-3:]):
-            feat = self.gaze_channel_align[i](feat)  # fix channels
-            token = F.interpolate(feat, size=(64, 64), mode='bilinear', align_corners=False)
-            # Flatten gaze tokens
-            B, C, H, W = token.shape  # [B, 256, 64, 64]
-            gaze_token_flat = token.view(B, C, H * W)
-            tokens.append(gaze_token_flat)
-        gaze_tokens_flat = torch.cat(tokens, dim=2).permute(0, 2, 1)
+        if not gaze_flag:
+            gaze_feature_backbone = self._gaze_backbone(gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
+            tokens = []
+            for i, feat in enumerate(gaze_feature_backbone[-3:]):
+                feat = self.gaze_channel_align[i](feat)  # fix channels
+                token = F.interpolate(feat, size=(64, 64), mode='bilinear', align_corners=False)
+                # Flatten gaze tokens
+                B, C, H, W = token.shape  # [B, 256, 64, 64]
+                gaze_token_flat = token.view(B, C, H * W)
+                tokens.append(gaze_token_flat)
+            gaze_tokens_flat = torch.cat(tokens, dim=2).permute(0, 2, 1)
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
@@ -172,18 +174,17 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
 
-        qformer_q = self._gaze_embedding.weight.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1, -1)  # [64, 5, 256]
-
-        # print(f"qformer_q.shape {qformer_q.shape}")
-        # print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
-        gaze_query = self._qformer(
-            query_embeds=qformer_q,
-            encoder_hidden_states=gaze_tokens_flat,
-        ).last_hidden_state
-
-        # print(f"gaze out {gaze_out.shape}")
-
-        keyval = torch.cat([keyval, gaze_query], dim=1)
+        if not gaze_flag:
+            qformer_q = self._gaze_embedding.weight.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1, -1)  # [64, 5, 256]
+            # print(f"qformer_q.shape {qformer_q.shape}")
+            # print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
+            gaze_query = self._qformer(
+                query_embeds=qformer_q,
+                encoder_hidden_states=gaze_tokens_flat,
+            ).last_hidden_state
+            keyval = torch.cat([keyval, gaze_query], dim=1)
+        else:
+            gaze_query = None
 
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
 
@@ -353,6 +354,7 @@ class CustomTransformerDecoderLayer(nn.Module):
         super().__init__()
         self.dropout = nn.Dropout(0.1)
         self.dropout1 = nn.Dropout(0.1)
+        self.dropout2 = nn.Dropout(0.1)
         self.cross_bev_attention = GridSampleCrossBEVAttention(
             config.tf_d_model,
             config.tf_num_head,
@@ -418,8 +420,11 @@ class CustomTransformerDecoderLayer(nn.Module):
         traj_feature = self.norm2(traj_feature)
 
         # 4.5 cross attention with  gaze query
-        traj_feature = traj_feature + self.dropout1(self.cross_gaze_attention(traj_feature, gaze_query, gaze_query)[0])
-        traj_feature = self.norm3(traj_feature)
+        if gaze_query is not None:
+            traj_feature = traj_feature + self.dropout2(
+                self.cross_gaze_attention(traj_feature, gaze_query, gaze_query)[0]
+            )
+            traj_feature = self.norm3(traj_feature)
 
         # 4.6 feedforward network
         traj_feature = self.norm4(self.ffn(traj_feature))
