@@ -148,8 +148,11 @@ class HiddenModel(nn.Module):
         for i, feat in enumerate(gaze_feature_backbone):
             feat = self.gaze_channel_align[i](feat)  # fix channels
             token = F.interpolate(feat, size=(64, 64), mode='bilinear', align_corners=False)
-            tokens.append(token)
-        gaze_tokens = torch.cat(tokens, dim=1)
+            # Flatten gaze tokens
+            B, C, H, W = token.shape  # [B, 256, 64, 64]
+            gaze_token_flat = token.view(B, C, H * W).permute(0,2,1)
+            tokens.append(gaze_token_flat)
+        gaze_tokens_flat = torch.cat(tokens, dim=2)
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
@@ -179,16 +182,9 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
 
-        # Flatten gaze tokens
-        B, C, H, W = gaze_tokens.shape  # [B, 256, 64, 64]
-        print(f"self.gaze_tokens {gaze_tokens.shape}")#64, 4096, 1280
-        gaze_tokens_flat = gaze_tokens.view(B, C, H * W)
 
-        # print(f"self._gaze_embedding {self._gaze_embedding.shape}") # 5, 256
-        print(f"self.gaze_tokens_flat {gaze_tokens_flat.shape}")#64, 4096, 1280
         gaze_out = self._qformer(self._gaze_embedding, gaze_tokens_flat)
-        print(f"self.gaze_out {self.gaze_out.shape}")
-        # print(f"concat_cross_bev.shape {cross_bev_feature.shape}") 64, 256, 64, 64
+
         concat_cross_bev = torch.cat([keyval, gaze_out], dim=1)
 
         # Wtf is this??
