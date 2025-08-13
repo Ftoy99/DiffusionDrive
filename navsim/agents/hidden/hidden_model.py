@@ -184,7 +184,7 @@ class HiddenModel(nn.Module):
         gaze_tokens_flat = gaze_tokens.view(B, C, H * W).permute(0, 2, 1)  # [B, 4096, 256]
 
         print(f"self._gaze_embedding {self._gaze_embedding.shape}")
-        print(f"self.gaze_tokens_flat {self.gaze_tokens_flat.shape}")
+        print(f"self.gaze_tokens_flat {gaze_tokens_flat.shape}")
         gaze_out = self._qformer(self._gaze_embedding, gaze_tokens_flat)
         print(f"self.gaze_out {self.gaze_out.shape}")
         # print(f"concat_cross_bev.shape {cross_bev_feature.shape}") 64, 256, 64, 64
