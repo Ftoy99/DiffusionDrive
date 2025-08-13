@@ -117,8 +117,6 @@ class HiddenModel(nn.Module):
                                                 features_only=True)  # Resnet18
 
         self.gaze_channel_align = nn.ModuleList([
-            nn.Conv2d(64, 256, 1),  # for 64x72x72
-            nn.Conv2d(64, 256, 1),  # for 64x36x36
             nn.Conv2d(128, 256, 1),  # for 128x18x18
             nn.Conv2d(256, 256, 1),  # for 256x9x9
             nn.Conv2d(512, 256, 1),  # for 512x5x5
