@@ -184,7 +184,10 @@ class HiddenModel(nn.Module):
 
         print(f"qformer_q.shape {qformer_q.shape}")
         print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
-        gaze_out = self._qformer(qformer_q.contiguous(), gaze_tokens_flat.contiguous())
+        gaze_out = self._qformer(
+            query_embeds=qformer_q,
+            encoder_hidden_states=gaze_tokens_flat,
+        ).last_hidden_state
 
         concat_cross_bev = torch.cat([keyval, gaze_out], dim=1)
 
