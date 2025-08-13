@@ -37,9 +37,6 @@ class HiddenModel(nn.Module):
         self._config = config
         self._backbone = TransfuserBackbone(config)
 
-        self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
-                                                features_only=True)  # Resnet18
-
         self._keyval_embedding = nn.Parameter(torch.empty(8 ** 2 + 1, config.tf_d_model))  # 8x8 +1 trajectory
         nn.init.xavier_uniform_(self._keyval_embedding)
 
@@ -112,7 +109,6 @@ class HiddenModel(nn.Module):
         )
 
         # Gaze stuff
-
         self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
                                                 features_only=True)  # Resnet18
 
@@ -121,8 +117,6 @@ class HiddenModel(nn.Module):
             nn.Conv2d(256, 256, 1),  # for 256x9x9
             nn.Conv2d(512, 256, 1),  # for 512x5x5
         ])
-
-        self._fuse_gaze = nn.Conv2d(256 * 3, 256, kernel_size=1)
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
