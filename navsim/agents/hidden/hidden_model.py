@@ -179,7 +179,7 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
 
-        print(f"concat_cross_bev.shape {concat_cross_bev.shape}")
+        print(f"concat_cross_bev.shape {cross_bev_feature.shape}")
 
         # Wtf is this??
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
