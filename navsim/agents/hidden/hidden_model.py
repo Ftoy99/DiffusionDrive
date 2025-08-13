@@ -150,7 +150,6 @@ class HiddenModel(nn.Module):
             token = F.interpolate(feat, size=(64, 64), mode='bilinear', align_corners=False)
             tokens.append(token)
         gaze_tokens = torch.cat(tokens, dim=1)
-        print(f"gaze_tokens.shape {gaze_tokens.shape}")
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
@@ -164,7 +163,7 @@ class HiddenModel(nn.Module):
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
         keyval = torch.concatenate([bev_feature, status_encoding[:, None]], dim=1)  # B 65 256
 
-        keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
+        keyval += self._keyval_embedding[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
 
         concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
@@ -192,7 +191,7 @@ class HiddenModel(nn.Module):
         concat_cross_bev = torch.cat([keyval, gaze_out], dim=1)
 
         # Wtf is this??
-        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
+        query = self._query_embedding[None, ...].repeat(batch_size, 1, 1)
 
         # print(f"query.shape {query.shape}")
         # print(f"keyval.shape {keyval.shape}")
