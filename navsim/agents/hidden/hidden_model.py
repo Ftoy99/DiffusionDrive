@@ -183,6 +183,8 @@ class HiddenModel(nn.Module):
                                                                                  bev_spatial_shape[1])
 
 
+        print(f"_gaze_embedding.shape {self._gaze_embedding.shape}")
+        print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
         gaze_out = self._qformer(self._gaze_embedding, gaze_tokens_flat)
 
         concat_cross_bev = torch.cat([keyval, gaze_out], dim=1)
