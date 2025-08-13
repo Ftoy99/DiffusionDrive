@@ -51,10 +51,10 @@ class HiddenModel(nn.Module):
 
         self._status_encoding = nn.Linear(4 + 2 + 2, config.tf_d_model)
 
-        # #Qformer
-        self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model, num_hidden_layers=4,
-                                                  num_attention_heads=4, encoder_hidden_size=256)
-        self._qformer = Blip2QFormerModel(self._qformer_config)
+        # # #Qformer
+        # self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model, num_hidden_layers=4,
+        #                                           num_attention_heads=4, encoder_hidden_size=256)
+        # self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
             nn.Conv2d(
@@ -81,15 +81,15 @@ class HiddenModel(nn.Module):
             ),
         )
 
-        # tf_decoder_layer = nn.TransformerDecoderLayer(
-        #     d_model=config.tf_d_model,
-        #     nhead=config.tf_num_head,
-        #     dim_feedforward=config.tf_d_ffn,
-        #     dropout=config.tf_dropout,
-        #     batch_first=True,
-        # )
-        #
-        # self._tf_decoder = nn.TransformerDecoder(tf_decoder_layer, config.tf_num_layers)
+        tf_decoder_layer = nn.TransformerDecoderLayer(
+            d_model=config.tf_d_model,
+            nhead=config.tf_num_head,
+            dim_feedforward=config.tf_d_ffn,
+            dropout=config.tf_dropout,
+            batch_first=True,
+        )
+
+        self._tf_decoder = nn.TransformerDecoder(tf_decoder_layer, config.tf_num_layers)
         self._agent_head = AgentHead(
             num_agents=config.num_bounding_boxes,
             d_ffn=config.tf_d_ffn,
@@ -125,94 +125,66 @@ class HiddenModel(nn.Module):
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
-
-        # Simulate dropping
-        drop_prob = 0.15
-        if torch.rand(()) < drop_prob:
-            # print("Running without gaze")
-            gaze_feature = torch.zeros_like(gaze_feature)
-
+        if self.training:
+            drop_prob = 0.15
+            if torch.rand(()) < drop_prob:
+                print("Training without gaze")
+                gaze_feature = torch.zeros_like(gaze_feature)
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]
 
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
-        # print(f"bev_feature_upscale shape {bev_feature_upscale.shape}") 64, 64, 64, 64
-        # print(f"bev_feature shape {bev_feature.shape}") 64, 512, 8, 8
-
-        ## Gaze Processing
         # print(f"Shape of gaze before processing {gaze_feature.shape}")
         gaze_feature_backbone = self._gaze_backbone(gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
-        aligned_feats = []
-        for i, feat in enumerate(gaze_feature_backbone[-3:]):
+
+        # Fuse resnet features for gaze
+        tokens = []
+        for i, feat in enumerate(gaze_feature_backbone):
             feat = self.gaze_channel_align[i](feat)  # fix channels
-            feat = F.interpolate(feat, size=(5, 5), mode='bilinear', align_corners=False)
-            aligned_feats.append(feat)
-        fused_feat = torch.cat(aligned_feats, dim=1)  # [B, 256*5, 5, 5]
-        fused_feat = self._fuse_gaze(fused_feat)
-        gaze_tokens = fused_feat.flatten(2).permute(0, 2, 1)
-        # print(f"gaze tokens shape f{gaze_tokens.shape}") # 64, 25, 256
+            pooled = F.adaptive_avg_pool2d(feat, output_size=(1, 1))
+            # Flatten to [B, 1, C]
+            B, C, _, _ = pooled.shape
+            tok = pooled.view(B, 1, C)
+            tokens.append(tok)
+        gaze_tokens = torch.cat(tokens, dim=1)
+        # print(f"gaze token shape {gaze_tokens.shape}")
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
 
         concat_cross_bev_shape = bev_feature.shape[2:]
-
-        ## Bev Processing
         bev_feature = self._bev_downscale(bev_feature).flatten(-2, -1)
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
 
-        ## Lidar Feature Processing
-        lidar_feature_upscale = self._lidar_feature_upscale(bev_feature_upscale).flatten(-2, -1)
-        lidar_feature_upscale = lidar_feature_upscale.permute(0, 2, 1)
-        # print(f"lidar_feature_upscale {lidar_feature_upscale.shape}") 4096, 256
-
-        ## Fuse all modalities
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
-        # print(f"bev_feature_upscale shape {bev_feature_upscale.shape}") # bev_feature_upscale shape torch.Size([64, 64, 64, 64])
-        keyval = torch.concatenate([bev_feature, status_encoding[:, None],
-                                    gaze_tokens, lidar_feature_upscale], dim=1)  # B 65 256
+        keyval = torch.concatenate([bev_feature, status_encoding[:, None], gaze_tokens], dim=1)  # B 65 256
 
-        # print(f"keyval.shape {keyval.shape}") # 4186, 256
-
-        # keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
+        keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
-        # print(f"concat_cross_bev shape before permute {keyval.shape}") #64, 70, 256
-        # concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
-        #                                                                      concat_cross_bev_shape[1])
-        # print(f"concat_cross_bev shape after permute {concat_cross_bev.shape}")#4, 276, 8, 8
+
+        concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
+                                                                             concat_cross_bev_shape[1])
         # upsample to the same shape as bev_feature_upscale
 
-        # concat_cross_bev = F.interpolate(concat_cross_bev, size=bev_spatial_shape, mode='bilinear', align_corners=False)
+        concat_cross_bev = F.interpolate(concat_cross_bev, size=bev_spatial_shape, mode='bilinear', align_corners=False)
         # concat concat_cross_bev and cross_bev_feature
-        # concat_cross_bev.shape # B, 276, 64, 64
-        # cross_bev_feature.shape # 64, 64, 64, 64
-        # cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
-        # print(f"After concat {cross_bev_feature.shape}") # 340, 64, 64
+        cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
         # print(f"Type for things {cross_bev_feature.flatten(-2, -1).permute(0, 2, 1).shape}")
         cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
-        # print(f"Final cross_bev_feature shape {cross_bev_feature.shape}") # B, 256, 64, 64
         # Wtf is this??
-        # # print(f"shape of keyval at decoder {keyval.shape}") # 70 256
-        query_embeds = self._query_embedding.weight.unsqueeze(0).repeat(batch_size, 1, 1)
-        # query_out = self._tf_decoder(query, keyval)  # B 31 256
+        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
+        query_out = self._tf_decoder(query, keyval)
 
-        query_out = self._qformer(
-            query_embeds=query_embeds,
-            encoder_hidden_states=keyval
-        ).last_hidden_state  # [B, num_queries, hidden_dim]
-
-        # print(f"bev_feature_upscale bev sematic head {bev_feature_upscale.shape}") # B 64 64 64
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
 
         output: Dict[str, torch.Tensor] = {"bev_semantic_map": bev_semantic_map}
 
-        # print(f"Before trajectory head {bev_feature_upscale.shape}") # B 64 64 64
         trajectory = self._trajectory_head(trajectory_query, agents_query, cross_bev_feature, bev_spatial_shape,
                                            status_encoding[:, None], targets=targets, global_img=None)
         output.update(trajectory)
