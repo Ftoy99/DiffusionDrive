@@ -57,7 +57,7 @@ class HiddenModel(nn.Module):
 
         # #Qformer
         self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model, num_hidden_layers=4,
-                                                  num_attention_heads=4, encoder_hidden_size=256)
+                                                  num_attention_heads=4, encoder_hidden_size=256,)
         self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
@@ -145,7 +145,7 @@ class HiddenModel(nn.Module):
 
         gaze_feature_backbone = self._gaze_backbone(gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
         tokens = []
-        for i, feat in enumerate(gaze_feature_backbone):
+        for i, feat in enumerate(gaze_feature_backbone[-3:]):
             feat = self.gaze_channel_align[i](feat)  # fix channels
             token = F.interpolate(feat, size=(64, 64), mode='bilinear', align_corners=False)
             # Flatten gaze tokens
