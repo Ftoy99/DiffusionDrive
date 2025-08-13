@@ -152,8 +152,7 @@ class HiddenModel(nn.Module):
             B, C, H, W = token.shape  # [B, 256, 64, 64]
             gaze_token_flat = token.view(B, C, H * W)
             tokens.append(gaze_token_flat)
-        gaze_tokens_flat = torch.cat(tokens, dim=2)
-        gaze_tokens_flat.permute(0, 2, 1)
+        gaze_tokens_flat = torch.cat(tokens, dim=2).permute(0, 2, 1)
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
