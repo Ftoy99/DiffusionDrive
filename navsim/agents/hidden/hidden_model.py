@@ -43,7 +43,7 @@ class HiddenModel(nn.Module):
         self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)  # 30 x D
         nn.init.xavier_uniform_(self._query_embedding.weight)
 
-        self._gaze_embedding = nn.Embedding(64, config.tf_d_model)  # 5 x D
+        self._gaze_embedding = nn.Embedding(32, config.tf_d_model)  # 5 x D
         nn.init.xavier_uniform_(self._gaze_embedding.weight)
 
         # usually, the BEV features are variable in size.
