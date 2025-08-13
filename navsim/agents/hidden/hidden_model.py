@@ -43,7 +43,7 @@ class HiddenModel(nn.Module):
         self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)  # 30 x D
         nn.init.xavier_uniform_(self._query_embedding.weight)
 
-        self._gaze_embedding = nn.Embedding(5, config.tf_d_model)  # 5 x D
+        self._gaze_embedding = nn.Embedding(64, config.tf_d_model)  # 5 x D
         nn.init.xavier_uniform_(self._gaze_embedding.weight)
 
         # usually, the BEV features are variable in size.
@@ -119,11 +119,10 @@ class HiddenModel(nn.Module):
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
-        # drop_prob = 0.15
-        # gaze_flag = torch.rand(()) < drop_prob
-        # if gaze_flag:
-        #     print("Training without gaze")
-        gaze_flag = False
+        drop_prob = 0.15
+        gaze_flag = torch.rand(()) < drop_prob
+        if gaze_flag:
+            print("Training without gaze")
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
