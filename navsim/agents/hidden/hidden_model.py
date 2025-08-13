@@ -122,11 +122,10 @@ class HiddenModel(nn.Module):
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
-        if self.training:
-            drop_prob = 0.15
-            if torch.rand(()) < drop_prob:
-                print("Training without gaze")
-                gaze_feature = torch.zeros_like(gaze_feature)
+        drop_prob = 0.15
+        if torch.rand(()) < drop_prob:
+            print("Training without gaze")
+            gaze_feature = torch.zeros_like(gaze_feature)
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]
@@ -175,22 +174,22 @@ class HiddenModel(nn.Module):
 
         qformer_q = self._gaze_embedding.weight.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1, -1)  # [64, 5, 256]
 
-        print(f"qformer_q.shape {qformer_q.shape}")
-        print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
+        # print(f"qformer_q.shape {qformer_q.shape}")
+        # print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
         gaze_out = self._qformer(
             query_embeds=qformer_q,
             encoder_hidden_states=gaze_tokens_flat,
         ).last_hidden_state
 
-        print(f"gaze out {gaze_out.shape}")
+        # print(f"gaze out {gaze_out.shape}")
 
         keyval = torch.cat([keyval, gaze_out], dim=1)
 
         # Wtf is this??
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
 
-        print(f"query.shape {query.shape}")
-        print(f"keyval.shape {keyval.shape}")
+        # print(f"query.shape {query.shape}")
+        # print(f"keyval.shape {keyval.shape}")
         # query.shapetorch.Size([B, 31, 256])
         # keyval.shapetorch.Size([B, 65, 256])
         query_out = self._tf_decoder(query, keyval)
