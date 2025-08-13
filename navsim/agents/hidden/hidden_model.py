@@ -148,7 +148,7 @@ class HiddenModel(nn.Module):
             tok = pooled.view(B, 1, C)
             tokens.append(tok)
         gaze_tokens = torch.cat(tokens, dim=1)
-        print(gaze_tokens)
+        print(f"gaze_tokens.shape {gaze_tokens.shape}")
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
