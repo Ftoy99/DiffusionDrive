@@ -189,6 +189,8 @@ class HiddenModel(nn.Module):
             encoder_hidden_states=gaze_tokens_flat,
         ).last_hidden_state
 
+        print(f"gaze out {gaze_out.shape}")
+
         keyval = torch.cat([keyval, gaze_out], dim=1)
 
         # Wtf is this??
