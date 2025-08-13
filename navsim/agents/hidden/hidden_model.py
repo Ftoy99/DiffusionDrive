@@ -142,12 +142,13 @@ class HiddenModel(nn.Module):
         tokens = []
         for i, feat in enumerate(gaze_feature_backbone):
             feat = self.gaze_channel_align[i](feat)  # fix channels
-            pooled = F.adaptive_avg_pool2d(feat, output_size=(1, 1))
+            pooled = F.interpolate(feat, size=(64, 64), mode='bilinear', align_corners=False)
             # Flatten to [B, 1, C]
             B, C, _, _ = pooled.shape
             tok = pooled.view(B, 1, C)
             tokens.append(tok)
         gaze_tokens = torch.cat(tokens, dim=1)
+        print(gaze_tokens)
 
         cross_bev_feature = bev_feature_upscale
         bev_spatial_shape = bev_feature_upscale.shape[2:]
@@ -177,10 +178,11 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
 
-        print(f"concat_cross_bev.shape {cross_bev_feature.shape}")
+        # print(f"concat_cross_bev.shape {cross_bev_feature.shape}") 64, 256, 64, 64
 
         # Wtf is this??
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
+
         query_out = self._tf_decoder(query, keyval)
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
