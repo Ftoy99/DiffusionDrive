@@ -189,7 +189,7 @@ class HiddenModel(nn.Module):
             encoder_hidden_states=gaze_tokens_flat,
         ).last_hidden_state
 
-        concat_cross_bev = torch.cat([keyval, gaze_out], dim=1)
+        keyval = torch.cat([keyval, gaze_out], dim=1)
 
         # Wtf is this??
         query = self._query_embedding[None, ...].repeat(batch_size, 1, 1)
