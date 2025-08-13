@@ -40,8 +40,7 @@ class HiddenModel(nn.Module):
         self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
                                                 features_only=True)  # Resnet18
 
-        self._keyval_embedding = nn.Embedding(8 ** 2 + 1 + 5,
-                                              config.tf_d_model)  # 8x8 feature grid + trajectory + 5gaze
+        self._keyval_embedding = nn.Embedding(8 ** 2 + 1,config.tf_d_model)  # 8x8 feature grid + trajectory
 
         self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)  # [1,30]
 
