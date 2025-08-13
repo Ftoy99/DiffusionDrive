@@ -181,6 +181,7 @@ class HiddenModel(nn.Module):
 
         # Flatten gaze tokens
         B, C, H, W = gaze_tokens.shape  # [B, 256, 64, 64]
+        print(f"self.gaze_tokens {gaze_tokens.shape}")#64, 4096, 1280
         gaze_tokens_flat = gaze_tokens.view(B, C, H * W)
 
         # print(f"self._gaze_embedding {self._gaze_embedding.shape}") # 5, 256
