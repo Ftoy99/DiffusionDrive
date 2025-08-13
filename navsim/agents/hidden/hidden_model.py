@@ -142,11 +142,8 @@ class HiddenModel(nn.Module):
         tokens = []
         for i, feat in enumerate(gaze_feature_backbone):
             feat = self.gaze_channel_align[i](feat)  # fix channels
-            pooled = F.interpolate(feat, size=(64, 64), mode='bilinear', align_corners=False)
-            # Flatten to [B, 1, C]
-            B, C, _, _ = pooled.shape
-            tok = pooled.view(B, 1, C)
-            tokens.append(tok)
+            token = F.interpolate(feat, size=(64, 64), mode='bilinear', align_corners=False)
+            tokens.append(token)
         gaze_tokens = torch.cat(tokens, dim=1)
         print(f"gaze_tokens.shape {gaze_tokens.shape}")
 
