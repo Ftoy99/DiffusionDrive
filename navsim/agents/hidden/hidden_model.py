@@ -181,10 +181,10 @@ class HiddenModel(nn.Module):
 
         # Flatten gaze tokens
         B, C, H, W = gaze_tokens.shape  # [B, 256, 64, 64]
-        gaze_tokens_flat = gaze_tokens.view(B, C, H * W).permute(0, 2, 1)  # [B, 4096, 256]
+        gaze_tokens_flat = gaze_tokens.view(B, C, H * W)
 
-        print(f"self._gaze_embedding {self._gaze_embedding.shape}")
-        print(f"self.gaze_tokens_flat {gaze_tokens_flat.shape}")
+        # print(f"self._gaze_embedding {self._gaze_embedding.shape}") # 5, 256
+        print(f"self.gaze_tokens_flat {gaze_tokens_flat.shape}")#64, 4096, 1280
         gaze_out = self._qformer(self._gaze_embedding, gaze_tokens_flat)
         print(f"self.gaze_out {self.gaze_out.shape}")
         # print(f"concat_cross_bev.shape {cross_bev_feature.shape}") 64, 256, 64, 64
