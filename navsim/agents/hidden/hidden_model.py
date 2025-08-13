@@ -182,9 +182,8 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
 
-        print(f"_gaze_embedding.shape {self._gaze_embedding.shape}")
-        print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
-        gaze_out = self._qformer(self._gaze_embedding, gaze_tokens_flat)
+        qformer_q = self._gaze_embedding.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1, -1)  # [64, 5, 256]
+        gaze_out = self._qformer(qformer_q, gaze_tokens_flat)
 
         concat_cross_bev = torch.cat([keyval, gaze_out], dim=1)
 
