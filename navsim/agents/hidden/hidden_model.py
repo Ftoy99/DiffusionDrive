@@ -48,7 +48,6 @@ class HiddenModel(nn.Module):
 
         # usually, the BEV features are variable in size.
         self._bev_downscale = nn.Conv2d(512, config.tf_d_model, kernel_size=1)
-        self._lidar_feature_upscale = nn.Conv2d(64, config.tf_d_model, kernel_size=1)
 
         self._status_encoding = nn.Linear(4 + 2 + 2, config.tf_d_model)
 
