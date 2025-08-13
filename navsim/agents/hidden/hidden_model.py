@@ -40,7 +40,7 @@ class HiddenModel(nn.Module):
         self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
                                                 features_only=True)  # Resnet18
 
-        self._keyval_embedding = nn.Embedding(8 ** 2 + 1,config.tf_d_model)  # 8x8 feature grid + trajectory
+        self._keyval_embedding = nn.Embedding(8 ** 2 + 1, config.tf_d_model)  # 8x8 feature grid + trajectory
 
         self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)  # [1,30]
 
@@ -103,7 +103,7 @@ class HiddenModel(nn.Module):
             config=config,
         )
         self.bev_proj = nn.Sequential(
-            *linear_relu_ln(256, 1, 1, 340),
+            *linear_relu_ln(256, 1, 1, 320),
         )
 
         # Gaze stuff
@@ -166,7 +166,6 @@ class HiddenModel(nn.Module):
 
         concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
                                                                              concat_cross_bev_shape[1])
-
 
         # upsample to the same shape as bev_feature_upscale
 
