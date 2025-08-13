@@ -150,7 +150,7 @@ class HiddenModel(nn.Module):
             token = F.interpolate(feat, size=(64, 64), mode='bilinear', align_corners=False)
             # Flatten gaze tokens
             B, C, H, W = token.shape  # [B, 256, 64, 64]
-            gaze_token_flat = token.view(B, C, H * W).permute(0,2,1)
+            gaze_token_flat = token.view(B, C, H * W)
             tokens.append(gaze_token_flat)
         gaze_tokens_flat = torch.cat(tokens, dim=2)
 
@@ -181,7 +181,6 @@ class HiddenModel(nn.Module):
         cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
-
 
         print(f"_gaze_embedding.shape {self._gaze_embedding.shape}")
         print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
