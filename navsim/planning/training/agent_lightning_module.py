@@ -26,22 +26,24 @@ class AgentLightningModule(pl.LightningModule):
         """
         features, targets = batch
         prediction = self.agent.forward(features, targets)
-
-
-
         # loss = self.agent.compute_loss(features, targets, prediction)
         # self.log(f"{logging_prefix}/loss", loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         # return loss
         loss_dict = self.agent.compute_loss(features, targets, prediction)
-        for k, v in loss_dict.items():
-            if v is not None:
-                self.log(f"{logging_prefix}/{k}", v, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=len(batch[0]))
 
-        # check unused parameters
+        loss = loss_dict['loss']
+        loss.backward(retain_graph=True)  # compute grads without stepping optimizer
+
         for name, param in self.agent.named_parameters():
             if param.grad is None:
                 print(f"UNUSED: {name}")
 
+        # optionally zero grads if you don’t want to affect Lightning
+        self.agent.zero_grad(set_to_none=True)
+
+        for k, v in loss_dict.items():
+            if v is not None:
+                self.log(f"{logging_prefix}/{k}", v, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=len(batch[0]))
         return loss_dict['loss']
 
     def training_step(self, batch: Tuple[Dict[str, Tensor], Dict[str, Tensor]], batch_idx: int) -> Tensor:
