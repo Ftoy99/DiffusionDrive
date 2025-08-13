@@ -119,11 +119,11 @@ class HiddenModel(nn.Module):
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
-        drop_prob = 0.15
-        gaze_flag = torch.rand(()) < drop_prob
-        if gaze_flag:
-            print("Training without gaze")
-
+        # drop_prob = 0.15
+        # gaze_flag = torch.rand(()) < drop_prob
+        # if gaze_flag:
+        #     print("Training without gaze")
+        gaze_flag = True
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
