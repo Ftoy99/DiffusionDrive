@@ -53,7 +53,7 @@ class HiddenModel(nn.Module):
 
         # #Qformer
         self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model, num_hidden_layers=4,
-                                                  num_attention_heads=4, encoder_hidden_size=256,)
+                                                  num_attention_heads=4, encoder_hidden_size=256, )
         self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
@@ -176,16 +176,15 @@ class HiddenModel(nn.Module):
 
         # print(f"qformer_q.shape {qformer_q.shape}")
         # print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
-        gaze_out = self._qformer(
+        gaze_query = self._qformer(
             query_embeds=qformer_q,
             encoder_hidden_states=gaze_tokens_flat,
         ).last_hidden_state
 
         # print(f"gaze out {gaze_out.shape}")
 
-        keyval = torch.cat([keyval, gaze_out], dim=1)
+        keyval = torch.cat([keyval, gaze_query], dim=1)
 
-        # Wtf is this??
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
 
         # print(f"query.shape {query.shape}")
@@ -200,7 +199,7 @@ class HiddenModel(nn.Module):
         output: Dict[str, torch.Tensor] = {"bev_semantic_map": bev_semantic_map}
 
         trajectory = self._trajectory_head(trajectory_query, agents_query, cross_bev_feature, bev_spatial_shape,
-                                           status_encoding[:, None], targets=targets, global_img=None)
+                                           status_encoding[:, None], gaze_query, targets=targets, global_img=None)
         output.update(trajectory)
 
         agents = self._agent_head(agents_query)
@@ -373,6 +372,12 @@ class CustomTransformerDecoderLayer(nn.Module):
             dropout=config.tf_dropout,
             batch_first=True,
         )
+        self.cross_gaze_attention = nn.MultiheadAttention(
+            config.tf_d_model,
+            config.tf_num_head,
+            dropout=config.tf_dropout,
+            batch_first=True,
+        )
         self.ffn = nn.Sequential(
             nn.Linear(config.tf_d_model, config.tf_d_ffn),
             nn.ReLU(),
@@ -381,6 +386,7 @@ class CustomTransformerDecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(config.tf_d_model)
         self.norm2 = nn.LayerNorm(config.tf_d_model)
         self.norm3 = nn.LayerNorm(config.tf_d_model)
+        self.norm4 = nn.LayerNorm(config.tf_d_model)
         self.time_modulation = ModulationLayer(config.tf_d_model, 256)
         self.task_decoder = DiffMotionPlanningRefinementModule(
             embed_dims=config.tf_d_model,
@@ -397,6 +403,7 @@ class CustomTransformerDecoderLayer(nn.Module):
                 ego_query,
                 time_embed,
                 status_encoding,
+                gaze_query,
                 global_img=None):
         traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape)
 
@@ -410,8 +417,12 @@ class CustomTransformerDecoderLayer(nn.Module):
         traj_feature = traj_feature + self.dropout1(self.cross_ego_attention(traj_feature, ego_query, ego_query)[0])
         traj_feature = self.norm2(traj_feature)
 
+        # 4.5 cross attention with  gaze query
+        traj_feature = traj_feature + self.dropout1(self.cross_gaze_attention(traj_feature, gaze_query, gaze_query)[0])
+        traj_feature = self.norm3(traj_feature)
+
         # 4.6 feedforward network
-        traj_feature = self.norm3(self.ffn(traj_feature))
+        traj_feature = self.norm4(self.ffn(traj_feature))
         # 4.8 modulate with time steps
         traj_feature = self.time_modulation(traj_feature, time_embed, global_cond=None, global_img=global_img)
 
@@ -449,13 +460,14 @@ class CustomTransformerDecoder(nn.Module):
                 ego_query,
                 time_embed,
                 status_encoding,
+                gaze_query,
                 global_img=None):
         poses_reg_list = []
         poses_cls_list = []
         traj_points = noisy_traj_points
         for mod in self.layers:
             poses_reg, poses_cls = mod(traj_feature, traj_points, bev_feature, bev_spatial_shape, agents_query,
-                                       ego_query, time_embed, status_encoding, global_img)
+                                       ego_query, time_embed, status_encoding, gaze_query, global_img)
             poses_reg_list.append(poses_reg)
             poses_cls_list.append(poses_cls)
             traj_points = poses_reg[..., :2].clone().detach()
@@ -534,17 +546,21 @@ class TrajectoryHead(nn.Module):
         odo_info_fut_head = (odo_info_fut_head + 1) / 2 * 3.9 - 2
         return torch.cat([odo_info_fut_x, odo_info_fut_y, odo_info_fut_head], dim=-1)
 
-    def forward(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, targets=None,
+    def forward(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,
+                targets=None,
                 global_img=None) -> Dict[str, torch.Tensor]:
         """Torch module forward pass."""
         if self.training:
-            return self.forward_train(ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, targets,
+            return self.forward_train(ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding,
+                                      gaze_query, targets,
                                       global_img)
         else:
             return self.forward_test(ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding,
+                                     gaze_query,
                                      global_img)
 
-    def forward_train(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, targets=None,
+    def forward_train(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,
+                      targets=None,
                       global_img=None) -> Dict[str, torch.Tensor]:
         bs = ego_query.shape[0]
         device = ego_query.device
@@ -577,7 +593,7 @@ class TrajectoryHead(nn.Module):
         # 4. begin the stacked decoder
         poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points, bev_feature,
                                                            bev_spatial_shape, agents_query, ego_query, time_embed,
-                                                           status_encoding, global_img)
+                                                           status_encoding, gaze_query, global_img)
 
         trajectory_loss_dict = {}
         ret_traj_loss = 0
@@ -591,7 +607,8 @@ class TrajectoryHead(nn.Module):
         best_reg = torch.gather(poses_reg_list[-1], 1, mode_idx).squeeze(1)
         return {"trajectory": best_reg, "trajectory_loss": ret_traj_loss, "trajectory_loss_dict": trajectory_loss_dict}
 
-    def forward_test(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, global_img) -> \
+    def forward_test(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,
+                     global_img) -> \
             Dict[str, torch.Tensor]:
         step_num = 2
         bs = ego_query.shape[0]
@@ -633,7 +650,7 @@ class TrajectoryHead(nn.Module):
             # 4. begin the stacked decoder
             poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points, bev_feature,
                                                                bev_spatial_shape, agents_query, ego_query, time_embed,
-                                                               status_encoding, global_img)
+                                                               status_encoding, gaze_query, global_img)
             poses_reg = poses_reg_list[-1]
             poses_cls = poses_cls_list[-1]
             x_start = poses_reg[..., :2]
