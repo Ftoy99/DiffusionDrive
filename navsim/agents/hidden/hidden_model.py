@@ -194,8 +194,8 @@ class HiddenModel(nn.Module):
         # Wtf is this??
         query = self._query_embedding[None, ...].repeat(batch_size, 1, 1)
 
-        # print(f"query.shape {query.shape}")
-        # print(f"keyval.shape {keyval.shape}")
+        print(f"query.shape {query.shape}")
+        print(f"keyval.shape {keyval.shape}")
         # query.shapetorch.Size([B, 31, 256])
         # keyval.shapetorch.Size([B, 65, 256])
         query_out = self._tf_decoder(query, keyval)
