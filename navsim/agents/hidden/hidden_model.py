@@ -50,10 +50,10 @@ class HiddenModel(nn.Module):
 
         self._status_encoding = nn.Linear(4 + 2 + 2, config.tf_d_model)
 
-        # # #Qformer
-        # self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model, num_hidden_layers=4,
-        #                                           num_attention_heads=4, encoder_hidden_size=256)
-        # self._qformer = Blip2QFormerModel(self._qformer_config)
+        # #Qformer
+        self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model, num_hidden_layers=4,
+                                                  num_attention_heads=4, encoder_hidden_size=256)
+        self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
             nn.Conv2d(
@@ -175,12 +175,20 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
 
+
+
+
         # print(f"concat_cross_bev.shape {cross_bev_feature.shape}") 64, 256, 64, 64
+        # concat_cross_bev = torch.cat([concat_cross_bev, gaze_tokens], dim=1)
 
         # Wtf is this??
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
 
+        print(f"query.shape {query.shape}")
+        print(f"keyval.shape {keyval.shape}")
+
         query_out = self._tf_decoder(query, keyval)
+
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
