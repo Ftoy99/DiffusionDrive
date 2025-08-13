@@ -40,9 +40,14 @@ class HiddenModel(nn.Module):
         self._gaze_backbone = timm.create_model(config.gaze_architecture, pretrained=True,
                                                 features_only=True)  # Resnet18
 
-        self._keyval_embedding = nn.Embedding(8 ** 2 + 1, config.tf_d_model)  # 8x8 feature grid + trajectory
+        self._keyval_embedding = nn.Parameter(torch.empty(8 ** 2 + 1, config.tf_d_model))  # 8x8 +1 trajectory
+        nn.init.xavier_uniform_(self._keyval_embedding)
 
-        self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)  # [1,30]
+        self._query_embedding = nn.Parameter(torch.empty(sum(self._query_splits), config.tf_d_model))
+        nn.init.xavier_uniform_(self._query_embedding)  # [1,30]
+
+        self._gaze_embedding = nn.Parameter(torch.empty(5, config.tf_d_model))  # 5x256
+        nn.init.xavier_uniform_(self._gaze_embedding)
 
         # usually, the BEV features are variable in size.
         self._bev_downscale = nn.Conv2d(512, config.tf_d_model, kernel_size=1)
@@ -175,20 +180,25 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
 
+        # Flatten gaze tokens
+        B, C, H, W = gaze_tokens.shape  # [B, 256, 64, 64]
+        gaze_tokens_flat = gaze_tokens.view(B, C, H * W).permute(0, 2, 1)  # [B, 4096, 256]
 
-
-
+        print(f"self._gaze_embedding {self._gaze_embedding.shape}")
+        print(f"self.gaze_tokens_flat {self.gaze_tokens_flat.shape}")
+        gaze_out = self._qformer(self._gaze_embedding, gaze_tokens_flat)
+        print(f"self.gaze_out {self.gaze_out.shape}")
         # print(f"concat_cross_bev.shape {cross_bev_feature.shape}") 64, 256, 64, 64
-        # concat_cross_bev = torch.cat([concat_cross_bev, gaze_tokens], dim=1)
+        concat_cross_bev = torch.cat([keyval, gaze_out], dim=1)
 
         # Wtf is this??
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
 
-        print(f"query.shape {query.shape}")
-        print(f"keyval.shape {keyval.shape}")
-
+        # print(f"query.shape {query.shape}")
+        # print(f"keyval.shape {keyval.shape}")
+        # query.shapetorch.Size([B, 31, 256])
+        # keyval.shapetorch.Size([B, 65, 256])
         query_out = self._tf_decoder(query, keyval)
-
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
