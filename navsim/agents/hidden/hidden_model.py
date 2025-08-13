@@ -37,14 +37,14 @@ class HiddenModel(nn.Module):
         self._config = config
         self._backbone = TransfuserBackbone(config)
 
-        self._keyval_embedding = nn.Parameter(torch.empty(8 ** 2 + 1, config.tf_d_model))  # 8x8 +1 trajectory
-        nn.init.xavier_uniform_(self._keyval_embedding)
+        self._keyval_embedding = nn.Embedding(8 ** 2 + 1, config.tf_d_model)  # 65 x D
+        nn.init.xavier_uniform_(self._keyval_embedding.weight)
 
-        self._query_embedding = nn.Parameter(torch.empty(sum(self._query_splits), config.tf_d_model))
-        nn.init.xavier_uniform_(self._query_embedding)  # [1,30]
+        self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)  # 30 x D
+        nn.init.xavier_uniform_(self._query_embedding.weight)
 
-        self._gaze_embedding = nn.Parameter(torch.empty(5, config.tf_d_model))  # 5x256
-        nn.init.xavier_uniform_(self._gaze_embedding)
+        self._gaze_embedding = nn.Embedding(5, config.tf_d_model)  # 5 x D
+        nn.init.xavier_uniform_(self._gaze_embedding.weight)
 
         # usually, the BEV features are variable in size.
         self._bev_downscale = nn.Conv2d(512, config.tf_d_model, kernel_size=1)
@@ -158,7 +158,7 @@ class HiddenModel(nn.Module):
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
         keyval = torch.concatenate([bev_feature, status_encoding[:, None]], dim=1)  # B 65 256
 
-        keyval += self._keyval_embedding[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
+        keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
 
         concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
@@ -174,7 +174,7 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
 
-        qformer_q = self._gaze_embedding.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1, -1)  # [64, 5, 256]
+        qformer_q = self._gaze_embedding.weight.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1, -1)  # [64, 5, 256]
 
         print(f"qformer_q.shape {qformer_q.shape}")
         print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
@@ -188,7 +188,7 @@ class HiddenModel(nn.Module):
         keyval = torch.cat([keyval, gaze_out], dim=1)
 
         # Wtf is this??
-        query = self._query_embedding[None, ...].repeat(batch_size, 1, 1)
+        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
 
         print(f"query.shape {query.shape}")
         print(f"keyval.shape {keyval.shape}")
