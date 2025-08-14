@@ -53,7 +53,7 @@ class HiddenModel(nn.Module):
 
         # #Qformer
         self._qformer_config = Blip2QFormerConfig(hidden_size=config.tf_d_model, num_hidden_layers=4,
-                                                  num_attention_heads=4, encoder_hidden_size=256, )
+                                                  num_attention_heads=4, encoder_hidden_size=256)
         self._qformer = Blip2QFormerModel(self._qformer_config)
 
         self._bev_semantic_head = nn.Sequential(
@@ -178,8 +178,6 @@ class HiddenModel(nn.Module):
 
         if not gaze_flag:
             qformer_q = self._gaze_embedding.weight.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1, -1)  # [64, 5, 256]
-            # print(f"qformer_q.shape {qformer_q.shape}")
-            # print(f"gaze_tokens_flat.shape {gaze_tokens_flat.shape}")
             gaze_query = self._qformer(
                 query_embeds=qformer_q,
                 encoder_hidden_states=gaze_tokens_flat,
@@ -421,14 +419,14 @@ class CustomTransformerDecoderLayer(nn.Module):
         traj_feature = traj_feature + self.dropout1(self.cross_ego_attention(traj_feature, ego_query, ego_query)[0])
         traj_feature = self.norm2(traj_feature)
 
-        # 4.5 cross attention with  gaze query
+        # 4.6 cross attention with  gaze query
         if gaze_query is not None:
             traj_feature = traj_feature + self.dropout2(
                 self.cross_gaze_attention(traj_feature, gaze_query, gaze_query)[0]
             )
             traj_feature = self.norm3(traj_feature)
 
-        # 4.6 feedforward network
+        # 4.7 feedforward network
         traj_feature = self.norm4(self.ffn(traj_feature))
         # 4.8 modulate with time steps
         traj_feature = self.time_modulation(traj_feature, time_embed, global_cond=None, global_img=global_img)
