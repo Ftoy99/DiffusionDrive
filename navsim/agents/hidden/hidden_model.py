@@ -123,7 +123,9 @@ class HiddenModel(nn.Module):
         # gaze_flag = torch.rand(()) < drop_prob
         # if gaze_flag:
         #     print("Training without gaze")
-        gaze_flag = False
+        # True
+        # False
+        gaze_flag = True
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
