@@ -1,4 +1,4 @@
-python nuscenes/nuscenes_converter.py nuscenes \
+python nuscenes_dir/nuscenes_converter.py nuscenes \
     --root-path /mnt/ds/nuscenes_mini/ \
     --canbus /mnt/ds/nuscenes_mini/ \
     --out-dir /mnt/ds/nuscenes_mini_processed \
