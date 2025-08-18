@@ -19,8 +19,6 @@ from nuscenes.utils.geometry_utils import transform_matrix
 from nuscenes.prediction import PredictHelper, convert_local_coords_to_global
 from tqdm import tqdm
 
-from projects.mmdet3d_plugin.datasets.map_utils.nuscmap_extractor import NuscMapExtractor
-
 from nuscenes.map_expansion.map_api import NuScenesMap, NuScenesMapExplorer
 from nuscenes.eval.common.utils import quaternion_yaw
 from pyquaternion import Quaternion
