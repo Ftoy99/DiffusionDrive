@@ -156,4 +156,3 @@ class NuscMapExtractor(object):
             boundary=boundaries, # List[LineString]
             drivable_area=drivable_areas, # List[Polygon],
         )
-
