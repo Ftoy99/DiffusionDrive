@@ -1,3 +1,4 @@
+import json
 import os
 import math
 
@@ -413,13 +414,17 @@ def create_nuscenes_infos(root_path,
         data = dict(infos=train_nusc_infos, metadata=metadata)
         info_path = osp.join(out_path,
                              '{}_infos_train.pkl'.format(info_prefix))
-        with open(info_path, 'wb') as f:
-            pickle.dump(data, f)
+        # with open(info_path, 'wb') as f:
+        #     pickle.dump(data, f)
+        with open(info_path.replace(__old="pkl",__new="json"), "w") as f:
+            json.dump(data, f, indent=2)  # pretty print
         data['infos'] = val_nusc_infos
         info_val_path = osp.join(out_path,
                                  '{}_infos_val.pkl'.format(info_prefix))
-        with open(info_val_path, 'wb') as f:
-            pickle.dump(data, f)
+        # with open(info_val_path, 'wb') as f:
+        #     # pickle.dump(data, f)
+        with open(info_val_path.replace(__old="pkl",__new="json"), "w") as f:
+            json.dump(data, f, indent=2)  # pretty print
 
 
 def get_available_scenes(nusc):
