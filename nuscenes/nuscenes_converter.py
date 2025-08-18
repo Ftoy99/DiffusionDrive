@@ -12,7 +12,7 @@ from shapely.geometry import MultiPoint, box
 
 import mmcv
 
-from nuscenes.nuscenes import NuScenes
+from nuscenes import NuScenes
 from nuscenes.can_bus.can_bus_api import NuScenesCanBus
 from nuscenes.utils.geometry_utils import transform_matrix
 from nuscenes.utils.data_classes import Box
