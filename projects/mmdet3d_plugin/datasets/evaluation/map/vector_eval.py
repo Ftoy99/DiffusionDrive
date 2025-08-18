@@ -261,15 +261,15 @@ class VectorEvaluate(object):
                 round(result_dict[self.id2cat[label]]['AP'], 4),
             ])
         
-        from mmcv.utils import print_log
-        print_log('\n'+str(table), logger=logger)
+        # from mmcv.utils import print_log
+        # print_log('\n'+str(table), logger=logger)
         mAP_normal = 0
         for label in self.id2cat.keys():
             for thr in self.thresholds:
                 mAP_normal += result_dict[self.id2cat[label]][f'AP@{thr}']
         mAP_normal = mAP_normal / 9
 
-        print_log(f'mAP_normal = {mAP_normal:.4f}\n', logger=logger)
+        # print_log(f'mAP_normal = {mAP_normal:.4f}\n', logger=logger)
         # print_log(f'mAP_hard = {mAP_easy:.4f}\n', logger=logger)
 
         new_result_dict = {}

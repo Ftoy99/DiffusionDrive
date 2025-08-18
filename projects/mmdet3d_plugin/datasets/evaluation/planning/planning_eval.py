@@ -4,7 +4,7 @@ import torch.nn as nn
 import numpy as np
 from shapely.geometry import Polygon
 
-from mmcv.utils import print_log
+# from mmcv.utils import print_log
 from mmdet.datasets import build_dataset, build_dataloader
 
 from projects.mmdet3d_plugin.datasets.utils import box3d_to_corners
@@ -174,5 +174,5 @@ def planning_eval(results, eval_config, logger):
                 row_value.append('%.4f' % float(value[i]))
         planning_tab.add_row(row_value)
 
-    print_log('\n'+str(planning_tab), logger=logger)
+    # print_log('\n'+str(planning_tab), logger=logger)
     return metric_dict
