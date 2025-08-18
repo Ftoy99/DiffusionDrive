@@ -2,6 +2,7 @@ import os
 import math
 import copy
 import argparse
+import pickle
 from os import path as osp
 from collections import OrderedDict
 from typing import List, Tuple, Union
@@ -10,14 +11,13 @@ import numpy as np
 from pyquaternion import Quaternion
 from shapely.geometry import MultiPoint, box
 
-import mmcv
-
 from nuscenes import NuScenes
 from nuscenes.can_bus.can_bus_api import NuScenesCanBus
 from nuscenes.utils.geometry_utils import transform_matrix
 from nuscenes.utils.data_classes import Box
 from nuscenes.utils.geometry_utils import view_points
 from nuscenes.prediction import PredictHelper, convert_local_coords_to_global
+from tqdm import tqdm
 
 from projects.mmdet3d_plugin.datasets.map_utils.nuscmap_extractor import NuscMapExtractor
 
@@ -142,18 +142,21 @@ def create_nuscenes_infos(root_path,
         data = dict(infos=train_nusc_infos, metadata=metadata)
         info_path = osp.join(out_path,
                              '{}_infos_test.pkl'.format(info_prefix))
-        mmcv.dump(data, info_path)
+        with open(info_path, 'wb') as f:
+            pickle.dump(data, f)
     else:
         print('train sample: {}, val sample: {}'.format(
             len(train_nusc_infos), len(val_nusc_infos)))
         data = dict(infos=train_nusc_infos, metadata=metadata)
         info_path = osp.join(out_path,
                              '{}_infos_train.pkl'.format(info_prefix))
-        mmcv.dump(data, info_path)
+        with open(info_path, 'wb') as f:
+            pickle.dump(data, f)
         data['infos'] = val_nusc_infos
         info_val_path = osp.join(out_path,
                                  '{}_infos_val.pkl'.format(info_prefix))
-        mmcv.dump(data, info_val_path)
+        with open(info_path, 'wb') as f:
+            pickle.dump(data, f)
 
 
 def get_available_scenes(nusc):
@@ -185,7 +188,7 @@ def get_available_scenes(nusc):
                 # path from lyftdataset is absolute path
                 lidar_path = lidar_path.split(f'{os.getcwd()}/')[-1]
                 # relative path
-            if not mmcv.is_filepath(lidar_path):
+            if not os.path.isfile(lidar_path):
                 scene_not_exist = True
                 break
             else:
@@ -227,7 +230,7 @@ def _fill_trainval_infos(nusc,
         cat2idx[dic['name']] = idx
 
     predict_helper = PredictHelper(nusc)
-    for sample in mmcv.track_iter_progress(nusc.sample):
+    for sample in tqdm(nusc.sample):
         map_location = nusc.get('log', nusc.get('scene', sample['scene_token'])['log_token'])['location']
         lidar_token = sample['data']['LIDAR_TOP']
         sd_rec = nusc.get('sample_data', lidar_token)
