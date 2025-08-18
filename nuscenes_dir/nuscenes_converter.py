@@ -418,7 +418,7 @@ def create_nuscenes_infos(root_path,
         data['infos'] = val_nusc_infos
         info_val_path = osp.join(out_path,
                                  '{}_infos_val.pkl'.format(info_prefix))
-        with open(info_path, 'wb') as f:
+        with open(info_val_path, 'wb') as f:
             pickle.dump(data, f)
 
 
