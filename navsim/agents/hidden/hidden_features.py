@@ -6,7 +6,6 @@ import numpy as np
 import numpy.typing as npt
 
 import torch
-from matplotlib import pyplot as plt
 from torchvision import transforms
 from torchvision.transforms import ToPILImage, ToTensor
 
