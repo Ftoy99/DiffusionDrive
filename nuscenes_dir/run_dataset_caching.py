@@ -83,7 +83,6 @@ def main():
 
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
 
-    # Split based on scene['name'] using predefined splits
     train_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_train]
     val_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_val]
 
