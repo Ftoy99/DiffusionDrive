@@ -131,8 +131,9 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
             # print(hist.shape)
             # print(hist)
             # hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
-            overhead_splat = hist / self._config.hist_max_per_pixel
-            # overhead_splat = (hist > 0).astype(np.uint8) * 255  # 255 = occupied, 0 = empty
+            #TODO MUST FIX THIS revert the previous line this was for debug
+            # overhead_splat = hist / self._config.hist_max_per_pixel
+            overhead_splat = (hist > 0).astype(np.uint8) * 255  # 255 = occupied, 0 = empty
             overhead_splat = overhead_splat.T
             return overhead_splat
 
