@@ -128,11 +128,13 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
             print("Z min/max:", point_cloud[:, 2].min(), point_cloud[:, 2].max())
 
             hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
+            hist.transpose()
             print(hist.shape)
             print(hist)
             # hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
             # overhead_splat = hist / self._config.hist_max_per_pixel
             overhead_splat = (hist > 0).astype(np.uint8) * 255  # 255 = occupied, 0 = empty
+            overhead_splat = np.flipud(overhead_splat.T)
             return overhead_splat
 
         # Remove points above the vehicle
