@@ -58,7 +58,7 @@ def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[
     return []
 
 
-@hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
+# @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(cfg: DictConfig) -> None:
     """
     Main entrypoint for dataset caching script.
@@ -70,7 +70,7 @@ def main(cfg: DictConfig) -> None:
     pl.seed_everything(0, workers=True)
 
     logger.info("Building Worker")
-    worker: WorkerPool = instantiate(cfg.worker)
+    worker: WorkerPool = WorkerPool(num_workers=None, use_process_pool=True)
 
     logger.info("Building SceneLoader")
     scene_filter: SceneFilter = instantiate(cfg.train_test_split.scene_filter)
