@@ -32,7 +32,7 @@ class HiddenConfig:
     lidar_max_y: float = 32
 
     lidar_split_height: float = 0.2
-    use_ground_plane: bool = False
+    use_ground_plane: bool = True
 
     # new
     lidar_seq_len: int = 1
