@@ -64,8 +64,6 @@ def main():
     Main entrypoint for dataset caching script.
     :param cfg: omegaconf dictionary
     """
-    logger.info("Config")
-    logger.info(cfg)
     logger.info("Global Seed set to 0")
     pl.seed_everything(0, workers=True)
 
