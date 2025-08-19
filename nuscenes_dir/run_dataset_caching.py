@@ -97,6 +97,7 @@ def main():
     feature_builder = HiddenFeatureBuilder(cfg)
     target_builder = HiddenTargetBuilder(cfg)
 
+    # TODO must clear this for each sample
     feat_data = NuFeatureData()
     target_data = NuTargetData()
 

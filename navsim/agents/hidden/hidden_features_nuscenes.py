@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 
+from pathlib import Path
 import torch
 from torchvision import transforms
 from torchvision.transforms import ToPILImage, ToTensor
@@ -25,6 +26,7 @@ from navsim.planning.training.abstract_feature_target_builder import AbstractFea
 
 from navsim.agents.hidden.depth_gaze import depth_inf
 
+front_cameras = ["CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_FRONT_LEFT"]
 
 class NuFeatureData:
 
@@ -50,10 +52,20 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         """Inherited, see superclass."""
         return "transfuser_feature"
 
-    def compute_features(self, agent_input: AgentInput) -> Dict[str, torch.Tensor]:
+    def compute_features(self, agent_input: NuFeatureData) -> Dict[str, torch.Tensor]:
         """Inherited, see superclass."""
         features = {}
         features["camera_feature"] = self._get_camera_feature(agent_input)
+        output_dir = Path("/ds/debug")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Convert tensor to NumPy uint8 image
+        tensor_img = features["camera_feature"]  # C,H,W
+        img = tensor_img.permute(1, 2, 0).cpu().numpy()  # H,W,C
+        img = (img * 255).astype('uint8')
+
+        # Save
+        cv2.imwrite(str(output_dir / "stitched_camera.png"), img[:, :, ::-1])  # RGB→BGR
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
         features["status_feature"] = torch.concatenate(
@@ -66,19 +78,17 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
 
         return features
 
-    def _get_camera_feature(self, agent_input: AgentInput) -> torch.Tensor:
+    def _get_camera_feature(self, agent_input: NuFeatureData) -> torch.Tensor:
         """
         Extract stitched camera from AgentInput
         :param agent_input: input dataclass
         :return: stitched front view image as torch tensor
         """
 
-        cameras = agent_input.cameras[-1]
-
         # Crop to ensure 4:1 aspect ratio
-        l0 = cameras.cam_l0.image[28:-28, 416:-416]
-        f0 = cameras.cam_f0.image[28:-28]
-        r0 = cameras.cam_r0.image[28:-28, 416:-416]
+        l0 = agent_input.images["CAM_FRONT_LEFT"][28:-28, 416:-416]
+        f0 = agent_input.images["CAM_FRONT"][28:-28]
+        r0 = agent_input.images["CAM_FRONT_RIGHT"][28:-28, 416:-416]
 
         # stitch l0, f0, r0 images
         stitched_image = np.concatenate([l0, f0, r0], axis=1)
