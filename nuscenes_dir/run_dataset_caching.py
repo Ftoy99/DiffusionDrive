@@ -82,23 +82,24 @@ def main():
 
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
     logger.info(nusc)
+    print(nusc)
 
-    train_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_train]
-    val_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_val]
+    # train_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_train]
+    # val_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_val]
 
-    logger.info(f"Loaded {len(train_scenes)} train scenes and {len(val_scenes)} valuation scenes")
-
-    data_points = [
-        {
-            "cfg": cfg,
-            "log_file": log_file,
-            "tokens": tokens_list,
-        }
-        for log_file, tokens_list in scene_loader.get_tokens_list_per_log().items()
-    ]
-
-    _ = worker_map(worker, cache_features, data_points)
-    logger.info(f"Finished caching {len(scene_loader)} scenarios for training/validation dataset")
+    # logger.info(f"Loaded {len(train_scenes)} train scenes and {len(val_scenes)} valuation scenes")
+    #
+    # data_points = [
+    #     {
+    #         "cfg": cfg,
+    #         "log_file": log_file,
+    #         "tokens": tokens_list,
+    #     }
+    #     for log_file, tokens_list in scene_loader.get_tokens_list_per_log().items()
+    # ]
+    #
+    # _ = worker_map(worker, cache_features, data_points)
+    # logger.info(f"Finished caching {len(scene_loader)} scenarios for training/validation dataset")
 
 
 if __name__ == "__main__":
