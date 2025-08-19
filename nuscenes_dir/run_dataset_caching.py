@@ -76,7 +76,6 @@ def main():
         use_distributed=False,  # single-PC mode
     )
 
-    worker = ThreadPool(num_workers=8)  # set threads you want
     logger.info("Building SceneLoader")
     scene_filter: SceneFilter = instantiate(cfg.train_test_split.scene_filter)
     data_path = Path(cfg.navsim_log_path)
