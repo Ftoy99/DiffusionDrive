@@ -11,6 +11,7 @@ import pytorch_lightning as pl
 from nuplan.planning.utils.multithreading.worker_utils import worker_map
 from nuplan.planning.utils.multithreading.worker_ray import RayDistributed
 from nuscenes import NuScenes
+from nuscenes.utils.splits import train, val
 
 from navsim.planning.training.dataset import Dataset
 from navsim.common.dataloader import SceneLoader
@@ -82,16 +83,11 @@ def main():
 
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
 
-    from nuscenes.utils.splits import train, val
-
     print("Train scenes:", train)
     print("Val scenes:", val)
 
-    # train_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_train]
-    # val_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_val]
+    logger.info(f"Loaded {len(train)} train scenes and {len(val)} valuation scenes")
 
-    # logger.info(f"Loaded {len(train_scenes)} train scenes and {len(val_scenes)} valuation scenes")
-    #
     # data_points = [
     #     {
     #         "cfg": cfg,
