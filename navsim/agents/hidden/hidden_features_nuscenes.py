@@ -107,11 +107,8 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         """
 
         # only consider (x,y,z) & swap axes for (N,3) numpy array
-        print(agent_input.lidar)
-        print(agent_input.lidar.shape)
         lidar_pc = agent_input.lidar
-        print(lidar_pc.shape)
-        print(lidar_pc[:5])  # show first 5 points
+
         # NOTE: Code from
         # https://github.com/autonomousvision/carla_garage/blob/main/team_code/data.py#L873
         def splat_points(point_cloud):
@@ -130,7 +127,6 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
             hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
             overhead_splat = hist / self._config.hist_max_per_pixel
             return overhead_splat
-            return point_cloud
 
         # Remove points above the vehicle
         lidar_pc = lidar_pc[lidar_pc[..., 2] < self._config.max_height_lidar]
