@@ -107,6 +107,8 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         """
 
         # only consider (x,y,z) & swap axes for (N,3) numpy array
+        print(agent_input.lidar)
+        print(agent_input.lidar.shape)
         lidar_pc = agent_input.lidar[LidarIndex.POSITION].T
         print(lidar_pc.shape)
         print(lidar_pc[:5])  # show first 5 points
