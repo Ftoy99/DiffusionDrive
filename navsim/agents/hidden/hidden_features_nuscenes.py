@@ -134,7 +134,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
             # hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
             # overhead_splat = hist / self._config.hist_max_per_pixel
             overhead_splat = (hist > 0).astype(np.uint8) * 255  # 255 = occupied, 0 = empty
-            overhead_splat = np.flipud(overhead_splat.T)
+            overhead_splat = overhead_splat.T
             return overhead_splat
 
         # Remove points above the vehicle
