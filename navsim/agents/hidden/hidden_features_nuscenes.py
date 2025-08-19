@@ -120,33 +120,48 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         print(f"lidar_pc {lidar_pc}")
         # NOTE: Code from
         # https://github.com/autonomousvision/carla_garage/blob/main/team_code/data.py#L873
+        # def splat_points(point_cloud):
+        #     # 256 x 256 grid
+        #     xbins = np.linspace(
+        #         self._config.lidar_min_x,
+        #         self._config.lidar_max_x,
+        #         (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
+        #     )
+        #     ybins = np.linspace(
+        #         self._config.lidar_min_y,
+        #         self._config.lidar_max_y,
+        #         (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
+        #     )
+        #
+        #     print("xbins:", len(xbins), "ybins:", len(ybins))
+        #     hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
+        #     # After histogram
+        #     print("Max histogram value:", hist.max())
+        #     hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
+        #     overhead_splat = hist / self._config.hist_max_per_pixel
+        #     return overhead_splat
         def splat_points(point_cloud):
-            # 256 x 256 grid
-            xbins = np.linspace(
-                self._config.lidar_min_x,
-                self._config.lidar_max_x,
-                (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
-            )
-            ybins = np.linspace(
-                self._config.lidar_min_y,
-                self._config.lidar_max_y,
-                (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
-            )
+            x_min, x_max = point_cloud[:, 0].min(), point_cloud[:, 0].max()
+            y_min, y_max = point_cloud[:, 1].min(), point_cloud[:, 1].max()
 
-            x_min, x_max = lidar_pc[:, 0].min(), lidar_pc[:, 0].max()
-            y_min, y_max = lidar_pc[:, 1].min(), lidar_pc[:, 1].max()
+            # avoid zero-width bins
+            if x_min == x_max: x_max += 1e-3
+            if y_min == y_max: y_max += 1e-3
 
-            xbins = np.linspace(x_min, x_max, 50)  # fewer bins for small area
+            xbins = np.linspace(x_min, x_max, 50)
             ybins = np.linspace(y_min, y_max, 50)
 
-            print("xbins:", len(xbins), "ybins:", len(ybins))
-            hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
-            # After histogram
-            print("Max histogram value:", hist.max())
-            hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
-            overhead_splat = hist / self._config.hist_max_per_pixel
-            return overhead_splat
+            # clip points to bin range
+            pc = point_cloud.copy()
+            pc[:, 0] = np.clip(pc[:, 0], x_min, x_max - 1e-6)
+            pc[:, 1] = np.clip(pc[:, 1], y_min, y_max - 1e-6)
 
+            hist = np.histogramdd(pc[:, :2], bins=(xbins, ybins))[0]
+
+            hist_max = max(1, self._config.hist_max_per_pixel)
+            hist[hist > hist_max] = hist_max
+            overhead_splat = hist / hist_max
+            return overhead_splat
         # Remove points above the vehicle
         lidar_pc = lidar_pc[lidar_pc[..., 2] < self._config.max_height_lidar]
         below = lidar_pc[lidar_pc[..., 2] <= self._config.lidar_split_height]
