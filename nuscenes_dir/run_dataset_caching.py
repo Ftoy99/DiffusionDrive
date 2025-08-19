@@ -13,6 +13,8 @@ from nuplan.planning.utils.multithreading.worker_ray import RayDistributed
 from nuscenes import NuScenes
 from nuscenes.utils.splits import train, val
 
+from navsim.agents.hidden.hidden_config import HiddenConfig
+from navsim.agents.hidden.hidden_features_nuscenes import HiddenFeatureBuilder, HiddenTargetBuilder
 from navsim.planning.training.dataset import Dataset
 from navsim.common.dataloader import SceneLoader
 from navsim.common.dataclasses import SceneFilter
@@ -87,8 +89,17 @@ def main():
 
     logger.info(f"Loaded {len(train)} train scenes and {len(val)} valuation scenes")
 
+    cfg = HiddenConfig()
+
+    feature_builder = HiddenFeatureBuilder(cfg)
+    target_builder = HiddenTargetBuilder(cfg)
+
     for scene in nusc.scene:
         print(scene["first_sample_token"])
+
+        features = feature_builder.compute_features()
+
+        target = target_builder.compute_targets()
 
     # data_points = [
     #     {
