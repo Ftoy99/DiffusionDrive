@@ -68,7 +68,8 @@ def main():
     pl.seed_everything(0, workers=True)
 
     logger.info("Building Worker")
-    worker: WorkerPool = WorkerPool(num_workers=None, use_process_pool=True)
+    from nuplan.planning.utils.multithreading.worker_pool import ThreadPool
+    worker: WorkerPool = ThreadPool(num_workers=8)
 
     logger.info("Building SceneLoader")
     scene_filter: SceneFilter = instantiate(cfg.train_test_split.scene_filter)
