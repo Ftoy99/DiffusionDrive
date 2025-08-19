@@ -64,27 +64,17 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         # img = (img * 255).astype('uint8')
         # cv2.imwrite(str(output_dir / "stitched_camera.png"), img[:, :, ::-1])  # RGB→BGR
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
-        features["lidar_feature"] = self._get_lidar_feature(agent_input)
-        lidar_points = features["lidar_feature"].cpu().numpy()  # (N, 3)
-        bev_size = (512, 512)  # output image size
-        x_min, x_max = -50, 50
-        y_min, y_max = -50, 50
-        x_img = ((lidar_points[:, 0] - x_min) / (x_max - x_min) * (bev_size[0] - 1)).astype(np.int32)
-        y_img = ((lidar_points[:, 1] - y_min) / (y_max - y_min) * (bev_size[1] - 1)).astype(np.int32)
-        x_img = np.clip(x_img, 0, bev_size[0] - 1)
-        y_img = np.clip(y_img, 0, bev_size[1] - 1)
-        bev_img = np.zeros(bev_size, dtype=np.uint8)
-        bev_img[y_img, x_img] = 255
-        save_path = Path("/mnt/ds/debug/lidar_bev_processed_as_feature.png")
-        cv2.imwrite(str(save_path), bev_img)
 
-        features["status_feature"] = torch.concatenate(
-            [
-                torch.tensor(agent_input.ego_statuses[-1].driving_command, dtype=torch.float32),
-                torch.tensor(agent_input.ego_statuses[-1].ego_velocity, dtype=torch.float32),
-                torch.tensor(agent_input.ego_statuses[-1].ego_acceleration, dtype=torch.float32),
-            ],
-        )
+        features["lidar_feature"] = self._get_lidar_feature(agent_input)
+
+        #
+        # features["status_feature"] = torch.concatenate(
+        #     [
+        #         torch.tensor(agent_input.ego_statuses[-1].driving_command, dtype=torch.float32),
+        #         torch.tensor(agent_input.ego_statuses[-1].ego_velocity, dtype=torch.float32),
+        #         torch.tensor(agent_input.ego_statuses[-1].ego_acceleration, dtype=torch.float32),
+        #     ],
+        # )
 
         return features
 
@@ -120,54 +110,28 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         print(f"lidar_pc {lidar_pc}")
         # NOTE: Code from
         # https://github.com/autonomousvision/carla_garage/blob/main/team_code/data.py#L873
-        # def splat_points(point_cloud):
-        #     # 256 x 256 grid
-        #     xbins = np.linspace(
-        #         self._config.lidar_min_x,
-        #         self._config.lidar_max_x,
-        #         (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
-        #     )
-        #     ybins = np.linspace(
-        #         self._config.lidar_min_y,
-        #         self._config.lidar_max_y,
-        #         (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
-        #     )
-        #
-        #     print("xbins:", len(xbins), "ybins:", len(ybins))
-        #     hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
-        #     # After histogram
-        #     print("Max histogram value:", hist.max())
-        #     hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
-        #     overhead_splat = hist / self._config.hist_max_per_pixel
-        #     return overhead_splat
         def splat_points(point_cloud):
-            if point_cloud.shape[0] == 0:
-                return np.zeros((50, 50), dtype=np.float32)  # or whatever your bin size is
-
-            x_min, x_max = point_cloud[:, 0].min(), point_cloud[:, 0].max()
-            y_min, y_max = point_cloud[:, 1].min(), point_cloud[:, 1].max()
-
-            if x_min == x_max: x_max += 1e-3
-            if y_min == y_max: y_max += 1e-3
-
-            xbins = np.linspace(x_min, x_max, 50)
-            ybins = np.linspace(y_min, y_max, 50)
-
-            pc = point_cloud.copy()
-            pc[:, 0] = np.clip(pc[:, 0], x_min, x_max - 1e-6)
-            pc[:, 1] = np.clip(pc[:, 1], y_min, y_max - 1e-6)
-
-            hist = np.histogramdd(pc[:, :2], bins=(xbins, ybins))[0]
-
-            hist_max = max(1, self._config.hist_max_per_pixel)
-            hist[hist > hist_max] = hist_max
-            overhead_splat = hist / hist_max
+            # 256 x 256 grid
+            xbins = np.linspace(
+                self._config.lidar_min_x,
+                self._config.lidar_max_x,
+                (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
+            )
+            ybins = np.linspace(
+                self._config.lidar_min_y,
+                self._config.lidar_max_y,
+                (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
+            )
+            hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
+            hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
+            overhead_splat = hist / self._config.hist_max_per_pixel
             return overhead_splat
 
         # Remove points above the vehicle
         lidar_pc = lidar_pc[lidar_pc[..., 2] < self._config.max_height_lidar]
         below = lidar_pc[lidar_pc[..., 2] <= self._config.lidar_split_height]
         above = lidar_pc[lidar_pc[..., 2] > self._config.lidar_split_height]
+
         above_features = splat_points(above)
         if self._config.use_ground_plane:
             below_features = splat_points(below)
