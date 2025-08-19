@@ -26,6 +26,16 @@ from navsim.planning.training.abstract_feature_target_builder import AbstractFea
 from navsim.agents.hidden.depth_gaze import depth_inf
 
 
+class NuFeatureData:
+
+    def __init__(self):
+        self.cameras = {}
+
+
+class NuTargetData:
+    pass
+
+
 class HiddenFeatureBuilder(AbstractFeatureBuilder):
     """Input feature builder for TransFuser."""
 

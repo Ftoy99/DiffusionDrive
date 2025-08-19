@@ -4,6 +4,7 @@ import logging
 import uuid
 import os
 
+import cv2
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 import pytorch_lightning as pl
@@ -14,7 +15,8 @@ from nuscenes import NuScenes
 from nuscenes.utils.splits import train, val
 
 from navsim.agents.hidden.hidden_config import HiddenConfig
-from navsim.agents.hidden.hidden_features_nuscenes import HiddenFeatureBuilder, HiddenTargetBuilder
+from navsim.agents.hidden.hidden_features_nuscenes import HiddenFeatureBuilder, HiddenTargetBuilder, NuFeatureData, \
+    NuTargetData
 from navsim.planning.training.dataset import Dataset
 from navsim.common.dataloader import SceneLoader
 from navsim.common.dataclasses import SceneFilter
@@ -28,6 +30,9 @@ CONFIG_NAME = "default_training"
 # VERSION = "v1.0-trainval"
 DATA_PATH = "/mnt/ds/nuscenes_mini"
 VERSION = "v1.0-mini"
+front_cameras = ["CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_FRONT_LEFT"]
+
+
 def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[Optional[Any]]:
     """
     Helper function to cache features and targets of learnable agent.
@@ -72,15 +77,15 @@ def main():
     logger.info("Global Seed set to 0")
     pl.seed_everything(0, workers=True)
 
-    logger.info("Building Worker")
-    worker = RayDistributed(
-        master_node_ip=None,
-        threads_per_node=None,  # use all available threads
-        debug_mode=False,
-        log_to_driver=True,
-        logs_subdir="logs",
-        use_distributed=False,  # single-PC mode
-    )
+    # logger.info("Building Worker")
+    # worker = RayDistributed(
+    #     master_node_ip=None,
+    #     threads_per_node=None,  # use all available threads
+    #     debug_mode=False,
+    #     log_to_driver=True,
+    #     logs_subdir="logs",
+    #     use_distributed=False,  # single-PC mode
+    # )
 
     logger.info("Loading scenes")
 
@@ -94,12 +99,24 @@ def main():
     feature_builder = HiddenFeatureBuilder(cfg)
     target_builder = HiddenTargetBuilder(cfg)
 
+    feat_data = NuFeatureData()
+    target_data = NuTargetData()
+
     for scene in nusc.scene:
-        print(scene["first_sample_token"])
+        first_sample = scene["first_sample_token"]
+        sample = nusc.get('sample', first_sample)
 
-        features = feature_builder.compute_features()
+        for cam in front_cameras:
+            sensor_token = sample['data'][cam]
+            sample_data = nusc.get('sample_data', sensor_token)
+            image_path = Path(nusc.dataroot) / sample_data['filename']
 
-        target = target_builder.compute_targets()
+            # Load image as NumPy array in RGB
+            img = cv2.imread(str(image_path))[:, :, ::-1]  # BGR → RGB
+            feat_data.images[cam] = img  # shape (H, W, 3), dtype=uint8
+
+        features = feature_builder.compute_features(feat_data)
+        target = target_builder.compute_targets(target_data)
 
     # data_points = [
     #     {
