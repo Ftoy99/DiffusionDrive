@@ -111,26 +111,26 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         # NOTE: Code from
         # https://github.com/autonomousvision/carla_garage/blob/main/team_code/data.py#L873
         def splat_points(point_cloud):
-            # 256 x 256 grid
-            xbins = np.linspace(
-                self._config.lidar_min_x,
-                self._config.lidar_max_x,
-                (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
-            )
-            ybins = np.linspace(
-                self._config.lidar_min_y,
-                self._config.lidar_max_y,
-                (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
-            )
-            hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
-            hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
-            overhead_splat = hist / self._config.hist_max_per_pixel
-            return overhead_splat
-
+            # # 256 x 256 grid
+            # xbins = np.linspace(
+            #     self._config.lidar_min_x,
+            #     self._config.lidar_max_x,
+            #     (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
+            # )
+            # ybins = np.linspace(
+            #     self._config.lidar_min_y,
+            #     self._config.lidar_max_y,
+            #     (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
+            # )
+            # hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
+            # hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
+            # overhead_splat = hist / self._config.hist_max_per_pixel
+            # return overhead_splat
+            return point_cloud
         # Remove points above the vehicle
         lidar_pc = lidar_pc[lidar_pc[..., 2] < self._config.max_height_lidar]
-        below = lidar_pc[lidar_pc[..., 2] <= 100]
-        above = lidar_pc[lidar_pc[..., 2] > 100]
+        below = lidar_pc[lidar_pc[..., 2] <= self._config.lidar_split_height]
+        above = lidar_pc[lidar_pc[..., 2] > self._config.lidar_split_height]
 
         above_features = splat_points(above)
         if self._config.use_ground_plane:
