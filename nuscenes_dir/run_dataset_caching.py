@@ -5,6 +5,7 @@ import uuid
 import os
 
 import cv2
+import numpy as np
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 import pytorch_lightning as pl
@@ -13,7 +14,8 @@ from nuplan.planning.utils.multithreading.worker_utils import worker_map
 from nuplan.planning.utils.multithreading.worker_ray import RayDistributed
 from nuscenes import NuScenes
 from nuscenes.utils.splits import train, val
-
+from nuscenes.utils.data_classes import LidarPointCloud
+import open3d as o3d
 from navsim.agents.hidden.hidden_config import HiddenConfig
 from navsim.agents.hidden.hidden_features_nuscenes import HiddenFeatureBuilder, HiddenTargetBuilder, NuFeatureData, \
     NuTargetData
@@ -105,6 +107,7 @@ def main():
         first_sample = scene["first_sample_token"]
         sample = nusc.get('sample', first_sample)
 
+        # Camera features
         for cam in front_cameras:
             sensor_token = sample['data'][cam]
             sample_data = nusc.get('sample_data', sensor_token)
@@ -115,6 +118,40 @@ def main():
             # Load image as NumPy array in RGB
             img = cv2.imread(str(image_path))[:, :, ::-1]  # BGR → RGB
             feat_data.images[cam] = img  # shape (H, W, 3), dtype=uint8
+
+        # LiDAR features
+        lidar_token = sample['data']['LIDAR_TOP']
+        sample_data = nusc.get('sample_data', lidar_token)
+        lidar_path = Path(nusc.dataroot) / sample_data['filename']
+
+        # Load point cloud
+        pc = LidarPointCloud.from_file(str(lidar_path))
+        points = pc.points[:3, :].T  # shape (N, 3) -> x,y,z
+
+        feat_data.lidar = points  # store in your feature data
+
+        lidar_points = feat_data.lidar  # (N, 3)
+
+        bev_size = (512, 512)  # output image size
+        x_min, x_max = -50, 50
+        y_min, y_max = -50, 50
+
+        # Normalize points to image coordinates
+        x_img = ((lidar_points[:, 0] - x_min) / (x_max - x_min) * (bev_size[0] - 1)).astype(np.int32)
+        y_img = ((lidar_points[:, 1] - y_min) / (y_max - y_min) * (bev_size[1] - 1)).astype(np.int32)
+
+        # Clip coordinates
+        x_img = np.clip(x_img, 0, bev_size[0] - 1)
+        y_img = np.clip(y_img, 0, bev_size[1] - 1)
+
+        # Create empty image and fill points
+        bev_img = np.zeros(bev_size, dtype=np.uint8)
+        bev_img[y_img, x_img] = 255
+
+        # Save
+        save_path = Path("/mnt/ds/debug/lidar_bev.png")
+        cv2.imwrite(str(save_path), bev_img)
+        print(f"Saved LiDAR BEV to {save_path}")
 
         features = feature_builder.compute_features(feat_data)
         target = target_builder.compute_targets(target_data)

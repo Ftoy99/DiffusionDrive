@@ -56,16 +56,12 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         """Inherited, see superclass."""
         features = {}
         features["camera_feature"] = self._get_camera_feature(agent_input)
-        output_dir = Path("/mnt/ds/debug")
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Convert tensor to NumPy uint8 image
-        tensor_img = features["camera_feature"]  # C,H,W
-        img = tensor_img.permute(1, 2, 0).cpu().numpy()  # H,W,C
-        img = (img * 255).astype('uint8')
-
-        # Save
-        cv2.imwrite(str(output_dir / "stitched_camera.png"), img[:, :, ::-1])  # RGB→BGR
+        # output_dir = Path("/mnt/ds/debug")
+        # output_dir.mkdir(parents=True, exist_ok=True)
+        # tensor_img = features["camera_feature"]  # C,H,W
+        # img = tensor_img.permute(1, 2, 0).cpu().numpy()  # H,W,C
+        # img = (img * 255).astype('uint8')
+        # cv2.imwrite(str(output_dir / "stitched_camera.png"), img[:, :, ::-1])  # RGB→BGR
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
         features["status_feature"] = torch.concatenate(
@@ -98,7 +94,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
 
         return tensor_image
 
-    def _get_lidar_feature(self, agent_input: AgentInput) -> torch.Tensor:
+    def _get_lidar_feature(self, agent_input: NuFeatureData) -> torch.Tensor:
         """
         Compute LiDAR feature as 2D histogram, according to Transfuser
         :param agent_input: input dataclass
