@@ -82,7 +82,7 @@ def main():
     logger.info("Loading scenes")
 
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
-
+    print(nusc.__dict__.keys())
     print("Train scenes:", train)
     print("Val scenes:", val)
 
