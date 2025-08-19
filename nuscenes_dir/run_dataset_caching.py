@@ -78,7 +78,7 @@ def main():
         use_distributed=False,  # single-PC mode
     )
 
-    logger.info("Building SceneLoader")
+    logger.info("Loading scenes")
 
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
 
