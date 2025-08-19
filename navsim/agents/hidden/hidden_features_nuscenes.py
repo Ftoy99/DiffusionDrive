@@ -138,37 +138,33 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
             return overhead_splat
 
         # Remove points above the vehicle
-        print("Before filter:", lidar_pc.shape)
+        # print("Before filter:", lidar_pc.shape)
         lidar_pc = lidar_pc[lidar_pc[..., 2] < self._config.max_height_lidar]
-        print("After filter:", lidar_pc.shape)
-
-        print("below Before filter:", lidar_pc.shape)
+        # print("After filter:", lidar_pc.shape)
+        #
+        # print("below Before filter:", lidar_pc.shape)
         below = lidar_pc[lidar_pc[..., 2] <= self._config.lidar_split_height]
-        print("below After filter:", lidar_pc.shape)
-
-        print("above Before filter:", lidar_pc.shape)
+        # print("below After filter:", lidar_pc.shape)
+        #
+        # print("above Before filter:", lidar_pc.shape)
         above = lidar_pc[lidar_pc[..., 2] > self._config.lidar_split_height]
-        print("above After filter:", above.shape)
-
-        print("above_features max/min:", above.max(), above.min())
+        # print("above After filter:", above.shape)
+        #
+        # print("above_features max/min:", above.max(), above.min())
         above_features = splat_points(above)
-        print("above_features max/min:", above_features.max(), above_features.min())
-        print("above After splatting:", above.shape)
+        # print("above_features max/min:", above_features.max(), above_features.min())
+        # print("above After splatting:", above.shape)
         if self._config.use_ground_plane:
             below_features = splat_points(below)
             features = np.stack([below_features, above_features], axis=-1)
         else:
             features = np.stack([above_features], axis=-1)
 
-        full_bins = np.count_nonzero(features)
-        print("Number of full bins:", full_bins)
+        # full_bins = np.count_nonzero(features)
+        # print("Number of full bins:", full_bins)
 
         bev_img = features[:, :, 0]  # single channel
         cv2.imwrite("/mnt/ds/debug/lidar_bev_img.png", bev_img)
-
-        features = np.transpose(features, (2, 0, 1)).astype(np.float32)
-
-
         return torch.tensor(features)
 
     def _get_gaze_feature(self, image):
