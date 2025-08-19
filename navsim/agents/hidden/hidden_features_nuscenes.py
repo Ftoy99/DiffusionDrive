@@ -132,7 +132,10 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
                 self._config.lidar_max_y,
                 (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
             )
+            print("xbins:", len(xbins), "ybins:", len(ybins))
             hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
+            # After histogram
+            print("Max histogram value:", hist.max())
             hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
             overhead_splat = hist / self._config.hist_max_per_pixel
             return overhead_splat
