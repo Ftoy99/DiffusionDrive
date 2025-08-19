@@ -88,9 +88,7 @@ def main():
     # )
 
     logger.info("Loading scenes")
-
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
-    print(nusc.scene)
 
     logger.info(f"Loaded {len(train)} train scenes and {len(val)} valuation scenes")
 

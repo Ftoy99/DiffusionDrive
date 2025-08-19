@@ -29,7 +29,7 @@ from navsim.agents.hidden.depth_gaze import depth_inf
 class NuFeatureData:
 
     def __init__(self):
-        self.cameras = {}
+        self.images = {}
 
 
 class NuTargetData:
