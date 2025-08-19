@@ -4,13 +4,12 @@ import logging
 import uuid
 import os
 
-import hydra
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 import pytorch_lightning as pl
 
-from nuplan.planning.utils.multithreading.worker_pool import WorkerPool
 from nuplan.planning.utils.multithreading.worker_utils import worker_map
+from nuplan.planning.utils.multithreading.worker_ray import RayDistributed
 
 from navsim.planning.training.dataset import Dataset
 from navsim.common.dataloader import SceneLoader
@@ -68,9 +67,16 @@ def main():
     pl.seed_everything(0, workers=True)
 
     logger.info("Building Worker")
-    from nuplan.planning.utils.multithreading.worker_pool import ThreadPool
-    worker: WorkerPool = ThreadPool(num_workers=8)
+    worker = RayDistributed(
+        master_node_ip=None,
+        threads_per_node=None,  # use all available threads
+        debug_mode=False,
+        log_to_driver=True,
+        logs_subdir="logs",
+        use_distributed=False,  # single-PC mode
+    )
 
+    worker = ThreadPool(num_workers=8)  # set threads you want
     logger.info("Building SceneLoader")
     scene_filter: SceneFilter = instantiate(cfg.train_test_split.scene_filter)
     data_path = Path(cfg.navsim_log_path)
