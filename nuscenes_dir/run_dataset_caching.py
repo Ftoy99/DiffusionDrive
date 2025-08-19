@@ -15,7 +15,6 @@ from nuplan.planning.utils.multithreading.worker_ray import RayDistributed
 from nuscenes import NuScenes
 from nuscenes.utils.splits import train, val
 from nuscenes.utils.data_classes import LidarPointCloud
-import open3d as o3d
 from navsim.agents.hidden.hidden_config import HiddenConfig
 from navsim.agents.hidden.hidden_features_nuscenes import HiddenFeatureBuilder, HiddenTargetBuilder, NuFeatureData, \
     NuTargetData
