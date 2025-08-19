@@ -112,22 +112,21 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         # NOTE: Code from
         # https://github.com/autonomousvision/carla_garage/blob/main/team_code/data.py#L873
         def splat_points(point_cloud):
-            # # 256 x 256 grid
-            # xbins = np.linspace(
-            #     self._config.lidar_min_x,
-            #     self._config.lidar_max_x,
-            #     (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
-            # )
-            # ybins = np.linspace(
-            #     self._config.lidar_min_y,
-            #     self._config.lidar_max_y,
-            #     (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
-            # )
-            # hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
+            # 256 x 256 grid
+            xbins = np.linspace(
+                self._config.lidar_min_x,
+                self._config.lidar_max_x,
+                (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
+            )
+            ybins = np.linspace(
+                self._config.lidar_min_y,
+                self._config.lidar_max_y,
+                (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
+            )
+            hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
             # hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
-            # overhead_splat = hist / self._config.hist_max_per_pixel
-            # return overhead_splat
-            return point_cloud
+            overhead_splat = hist / self._config.hist_max_per_pixel
+            return overhead_splat
 
         # Remove points above the vehicle
         print("Before filter:", lidar_pc.shape)
@@ -147,12 +146,12 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         print("above_features max/min:", above_features.max(), above_features.min())
         print("above After splatting:", above.shape)
         if self._config.use_ground_plane:
+
             below_features = splat_points(below)
             features = np.stack([below_features, above_features], axis=-1)
         else:
             features = np.stack([above_features], axis=-1)
         features = np.transpose(features, (2, 0, 1)).astype(np.float32)
-
         return torch.tensor(features)
 
     def _get_gaze_feature(self, image):
