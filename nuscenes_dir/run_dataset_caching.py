@@ -79,8 +79,6 @@ def main():
     )
 
     logger.info("Building SceneLoader")
-    DATA_PATH = "/path/to/nuscenes"
-    VERSION = "v1.0-trainval"
 
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
 
