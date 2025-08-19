@@ -161,8 +161,6 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
 
         print("above_features max/min:", above.max(), above.min())
         above_features = splat_points(above)
-        full_bins = np.count_nonzero(above_features)
-        print("Number of full bins:", full_bins)
         print("above_features max/min:", above_features.max(), above_features.min())
         print("above After splatting:", above.shape)
         if self._config.use_ground_plane:
@@ -170,7 +168,10 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
             features = np.stack([below_features, above_features], axis=-1)
         else:
             features = np.stack([above_features], axis=-1)
-        print(features.shape)
+
+        full_bins = np.count_nonzero(features)
+        print("Number of full bins:", full_bins)
+
         features = np.transpose(features, (2, 0, 1)).astype(np.float32)
         bev_img = (features[..., 0] * 255).astype(np.uint8)  # scale to 0-255
         cv2.imwrite("/mnt/ds/debug/lidar_bev_img.png", bev_img)
