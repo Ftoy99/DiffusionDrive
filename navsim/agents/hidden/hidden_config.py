@@ -26,10 +26,10 @@ class HiddenConfig:
     pixels_per_meter: float = 4.0
     hist_max_per_pixel: int = 5
 
-    lidar_min_x: float = -80
-    lidar_max_x: float = 80
-    lidar_min_y: float = -80
-    lidar_max_y: float = 80
+    lidar_min_x: float = -32
+    lidar_max_x: float = 32
+    lidar_min_y: float = -32
+    lidar_max_y: float = 32
 
     lidar_split_height: float = 0.2
     use_ground_plane: bool = False
