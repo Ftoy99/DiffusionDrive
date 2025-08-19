@@ -56,7 +56,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         """Inherited, see superclass."""
         features = {}
         features["camera_feature"] = self._get_camera_feature(agent_input)
-        output_dir = Path("/ds/debug")
+        output_dir = Path("/mnt/ds/debug")
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Convert tensor to NumPy uint8 image
