@@ -86,9 +86,8 @@ def main():
 
     logger.info(f"Loaded {len(train)} train scenes and {len(val)} valuation scenes")
 
-    for scene in train:
+    for scene in nusc:
         print(scene)
-        sample = nusc.get('sample', scene)
 
     # data_points = [
     #     {
