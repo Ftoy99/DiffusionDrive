@@ -111,6 +111,8 @@ def main():
             sample_data = nusc.get('sample_data', sensor_token)
             image_path = Path(nusc.dataroot) / sample_data['filename']
 
+            print(image_path)
+
             # Load image as NumPy array in RGB
             img = cv2.imread(str(image_path))[:, :, ::-1]  # BGR → RGB
             feat_data.images[cam] = img  # shape (H, W, 3), dtype=uint8
