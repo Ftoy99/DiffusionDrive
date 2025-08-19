@@ -76,7 +76,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         y_img = np.clip(y_img, 0, bev_size[1] - 1)
         bev_img = np.zeros(bev_size, dtype=np.uint8)
         bev_img[y_img, x_img] = 255
-        save_path = Path("/mnt/ds/debug/lidar_bev.png")
+        save_path = Path("/mnt/ds/debug/lidar_bev_hist.png")
         cv2.imwrite(str(save_path), bev_img)
         print(f"Saved LiDAR BEV to {save_path}")
         #
