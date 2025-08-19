@@ -123,10 +123,10 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
                 self._config.lidar_max_y,
                 (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
             )
-            print(xbins)
-            print(ybins)
+            print("X min/max:", point_cloud[:, 0].min(), point_cloud[:, 0].max())
+            print("Y min/max:", point_cloud[:, 1].min(), point_cloud[:, 1].max())
+            print("Z min/max:", point_cloud[:, 2].min(), point_cloud[:, 2].max())
 
-            print(point_cloud[:5])
             hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
 
             # hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
