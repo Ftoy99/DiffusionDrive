@@ -28,6 +28,7 @@ from navsim.agents.hidden.depth_gaze import depth_inf
 
 front_cameras = ["CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_FRONT_LEFT"]
 
+
 class NuFeatureData:
 
     def __init__(self):
@@ -108,19 +109,30 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         # only consider (x,y,z) & swap axes for (N,3) numpy array
         lidar_pc = agent_input.lidar[LidarIndex.POSITION].T
         print(f"lidar_pc {lidar_pc}")
+
         # NOTE: Code from
         # https://github.com/autonomousvision/carla_garage/blob/main/team_code/data.py#L873
         def splat_points(point_cloud):
             # 256 x 256 grid
+            # xbins = np.linspace(
+            #     self._config.lidar_min_x,
+            #     self._config.lidar_max_x,
+            #     (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
+            # )
+            # ybins = np.linspace(
+            #     self._config.lidar_min_y,
+            #     self._config.lidar_max_y,
+            #     (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
+            # )
             xbins = np.linspace(
-                self._config.lidar_min_x,
-                self._config.lidar_max_x,
-                (self._config.lidar_max_x - self._config.lidar_min_x) * int(self._config.pixels_per_meter) + 1,
+                -100,
+                100,
+                (100 - (-100)) * int(self._config.pixels_per_meter) + 1,
             )
             ybins = np.linspace(
-                self._config.lidar_min_y,
-                self._config.lidar_max_y,
-                (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
+                -100,
+                100,
+                (100 - (-100)) * int(self._config.pixels_per_meter) + 1,
             )
             hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
             hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
