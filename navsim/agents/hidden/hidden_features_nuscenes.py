@@ -129,9 +129,17 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
             return overhead_splat
 
         # Remove points above the vehicle
+        print("Before filter:", lidar_pc.shape)
         lidar_pc = lidar_pc[lidar_pc[..., 2] < self._config.max_height_lidar]
+        print("After filter:", lidar_pc.shape)
+
+        print("below Before filter:", lidar_pc.shape)
         below = lidar_pc[lidar_pc[..., 2] <= self._config.lidar_split_height]
+        print("below After filter:", lidar_pc.shape)
+
+        print("above Before filter:", lidar_pc.shape)
         above = lidar_pc[lidar_pc[..., 2] > self._config.lidar_split_height]
+        print("above After filter:", above.shape)
 
         above_features = splat_points(above)
         if self._config.use_ground_plane:
