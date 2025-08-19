@@ -172,13 +172,12 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         full_bins = np.count_nonzero(features)
         print("Number of full bins:", full_bins)
 
-        print(features)
-        print(features.shape)
+        bev_img = features[:, :, 0]  # single channel
+        cv2.imwrite("/mnt/ds/debug/lidar_bev_img.png", bev_img)
 
         features = np.transpose(features, (2, 0, 1)).astype(np.float32)
 
-        bev_img = (features[..., 0] * 255).astype(np.uint8)  # scale to 0-255
-        cv2.imwrite("/mnt/ds/debug/lidar_bev_img.png", bev_img)
+
         return torch.tensor(features)
 
     def _get_gaze_feature(self, image):
