@@ -10,10 +10,11 @@ import pytorch_lightning as pl
 
 from nuplan.planning.utils.multithreading.worker_utils import worker_map
 from nuplan.planning.utils.multithreading.worker_ray import RayDistributed
+from nuscenes.nuscenes import NuScenes
 
 from navsim.planning.training.dataset import Dataset
 from navsim.common.dataloader import SceneLoader
-from navsim.common.dataclasses import SceneFilter, SensorConfig
+from navsim.common.dataclasses import SceneFilter
 from navsim.agents.abstract_agent import AbstractAgent
 
 logger = logging.getLogger(__name__)
@@ -77,16 +78,16 @@ def main():
     )
 
     logger.info("Building SceneLoader")
-    scene_filter: SceneFilter = instantiate(cfg.train_test_split.scene_filter)
-    data_path = Path(cfg.navsim_log_path)
-    sensor_blobs_path = Path(cfg.sensor_blobs_path)
-    scene_loader = SceneLoader(
-        sensor_blobs_path=sensor_blobs_path,
-        data_path=data_path,
-        scene_filter=scene_filter,
-        sensor_config=SensorConfig.build_no_sensors(),
-    )
-    logger.info(f"Extracted {len(scene_loader)} scenarios for training/validation dataset")
+    DATA_PATH = "/path/to/nuscenes"
+    VERSION = "v1.0-trainval"
+
+    nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
+
+    # Split based on scene['name'] using predefined splits
+    train_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_train]
+    val_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_val]
+
+    logger.info(f"Loaded {len(train_scenes)} train scenes and {len(val_scenes)} valuation scenes")
 
     data_points = [
         {
