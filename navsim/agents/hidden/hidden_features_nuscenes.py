@@ -67,7 +67,18 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
 
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
-
+        bev_size = (512, 512)  # output image size
+        x_min, x_max = -50, 50
+        y_min, y_max = -50, 50
+        x_img = ((features["lidar_feature"][:, 0] - x_min) / (x_max - x_min) * (bev_size[0] - 1)).astype(np.int32)
+        y_img = ((features["lidar_feature"][:, 1] - y_min) / (y_max - y_min) * (bev_size[1] - 1)).astype(np.int32)
+        x_img = np.clip(x_img, 0, bev_size[0] - 1)
+        y_img = np.clip(y_img, 0, bev_size[1] - 1)
+        bev_img = np.zeros(bev_size, dtype=np.uint8)
+        bev_img[y_img, x_img] = 255
+        save_path = Path("/mnt/ds/debug/lidar_bev.png")
+        cv2.imwrite(str(save_path), bev_img)
+        print(f"Saved LiDAR BEV to {save_path}")
         #
         # features["status_feature"] = torch.concatenate(
         #     [
