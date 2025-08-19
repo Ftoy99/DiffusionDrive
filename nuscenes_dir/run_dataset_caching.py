@@ -59,7 +59,7 @@ def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[
 
 
 # @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
-def main(cfg: DictConfig) -> None:
+def main():
     """
     Main entrypoint for dataset caching script.
     :param cfg: omegaconf dictionary
