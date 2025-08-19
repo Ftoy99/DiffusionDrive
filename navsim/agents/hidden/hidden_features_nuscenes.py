@@ -32,6 +32,7 @@ class NuFeatureData:
 
     def __init__(self):
         self.images = {}
+        self.lidar = None
 
 
 class NuTargetData:
@@ -64,6 +65,8 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         # cv2.imwrite(str(output_dir / "stitched_camera.png"), img[:, :, ::-1])  # RGB→BGR
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
+
+
         features["status_feature"] = torch.concatenate(
             [
                 torch.tensor(agent_input.ego_statuses[-1].driving_command, dtype=torch.float32),
@@ -102,7 +105,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         """
 
         # only consider (x,y,z) & swap axes for (N,3) numpy array
-        lidar_pc = agent_input.lidars[-1].lidar_pc[LidarIndex.POSITION].T
+        lidar_pc = agent_input.lidar[LidarIndex.POSITION].T
 
         # NOTE: Code from
         # https://github.com/autonomousvision/carla_garage/blob/main/team_code/data.py#L873

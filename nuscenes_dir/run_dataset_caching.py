@@ -129,28 +129,19 @@ def main():
 
         feat_data.lidar = points  # store in your feature data
 
-        lidar_points = feat_data.lidar  # (N, 3)
-
-        bev_size = (512, 512)  # output image size
-        x_min, x_max = -50, 50
-        y_min, y_max = -50, 50
-
-        # Normalize points to image coordinates
-        x_img = ((lidar_points[:, 0] - x_min) / (x_max - x_min) * (bev_size[0] - 1)).astype(np.int32)
-        y_img = ((lidar_points[:, 1] - y_min) / (y_max - y_min) * (bev_size[1] - 1)).astype(np.int32)
-
-        # Clip coordinates
-        x_img = np.clip(x_img, 0, bev_size[0] - 1)
-        y_img = np.clip(y_img, 0, bev_size[1] - 1)
-
-        # Create empty image and fill points
-        bev_img = np.zeros(bev_size, dtype=np.uint8)
-        bev_img[y_img, x_img] = 255
-
-        # Save
-        save_path = Path("/mnt/ds/debug/lidar_bev.png")
-        cv2.imwrite(str(save_path), bev_img)
-        print(f"Saved LiDAR BEV to {save_path}")
+        # lidar_points = feat_data.lidar  # (N, 3)
+        # bev_size = (512, 512)  # output image size
+        # x_min, x_max = -50, 50
+        # y_min, y_max = -50, 50
+        # x_img = ((lidar_points[:, 0] - x_min) / (x_max - x_min) * (bev_size[0] - 1)).astype(np.int32)
+        # y_img = ((lidar_points[:, 1] - y_min) / (y_max - y_min) * (bev_size[1] - 1)).astype(np.int32)
+        # x_img = np.clip(x_img, 0, bev_size[0] - 1)
+        # y_img = np.clip(y_img, 0, bev_size[1] - 1)
+        # bev_img = np.zeros(bev_size, dtype=np.uint8)
+        # bev_img[y_img, x_img] = 255
+        # save_path = Path("/mnt/ds/debug/lidar_bev.png")
+        # cv2.imwrite(str(save_path), bev_img)
+        # print(f"Saved LiDAR BEV to {save_path}")
 
         features = feature_builder.compute_features(feat_data)
         target = target_builder.compute_targets(target_data)
