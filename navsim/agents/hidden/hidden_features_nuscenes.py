@@ -168,7 +168,10 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
             features = np.stack([below_features, above_features], axis=-1)
         else:
             features = np.stack([above_features], axis=-1)
+        print(features.shape)
         features = np.transpose(features, (2, 0, 1)).astype(np.float32)
+        bev_img = (features[..., 0] * 255).astype(np.uint8)  # scale to 0-255
+        cv2.imwrite("/mnt/ds/debug/lidar_bev.png", bev_img)
         return torch.tensor(features)
 
     def _get_gaze_feature(self, image):
