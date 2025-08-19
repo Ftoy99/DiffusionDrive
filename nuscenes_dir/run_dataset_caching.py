@@ -82,11 +82,13 @@ def main():
     logger.info("Loading scenes")
 
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
-    print(nusc.__dict__.keys())
-    print("Train scenes:", train)
-    print("Val scenes:", val)
+    print(nusc.scene)
 
     logger.info(f"Loaded {len(train)} train scenes and {len(val)} valuation scenes")
+
+    for scene in train:
+        print(scene)
+        sample = nusc.get('sample', scene)
 
     # data_points = [
     #     {
