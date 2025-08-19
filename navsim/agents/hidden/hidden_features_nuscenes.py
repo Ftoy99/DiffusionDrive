@@ -141,7 +141,9 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         above = lidar_pc[lidar_pc[..., 2] > self._config.lidar_split_height]
         print("above After filter:", above.shape)
 
+        print("above_features max/min:", above.max(), above.min())
         above_features = splat_points(above)
+        print("above_features max/min:", above_features.max(), above_features.min())
         print("above After splatting:", above.shape)
         if self._config.use_ground_plane:
             below_features = splat_points(below)
