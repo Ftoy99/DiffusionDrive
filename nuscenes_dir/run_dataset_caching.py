@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 
 CONFIG_PATH = "config/training"
 CONFIG_NAME = "default_training"
-DATA_PATH = "/mnt/ds/nuscenes"
-VERSION = "v1.0-trainval"
-
+# DATA_PATH = "/mnt/ds/nuscenes"
+# VERSION = "v1.0-trainval"
+DATA_PATH = "/mnt/ds/nuscenes_mini"
+VERSION = "v1.0-mini"
 def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[Optional[Any]]:
     """
     Helper function to cache features and targets of learnable agent.
