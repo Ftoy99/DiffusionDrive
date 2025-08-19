@@ -66,7 +66,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         # cv2.imwrite(str(output_dir / "stitched_camera.png"), img[:, :, ::-1])  # RGB→BGR
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
 
-        features["lidar_feature"] = self._get_lidar_feature(agent_input)
+        features["lidar_feature"] = self._get_lidar_feature(agent_input).cpu().numpy()
         bev_size = (512, 512)  # output image size
         x_min, x_max = -50, 50
         y_min, y_max = -50, 50
