@@ -10,7 +10,7 @@ import pytorch_lightning as pl
 
 from nuplan.planning.utils.multithreading.worker_utils import worker_map
 from nuplan.planning.utils.multithreading.worker_ray import RayDistributed
-from nuscenes.nuscenes import NuScenes
+from nuscenes import NuScenes
 
 from navsim.planning.training.dataset import Dataset
 from navsim.common.dataloader import SceneLoader
