@@ -87,7 +87,7 @@ class HiddenConfig:
     agent_class_weight: float = 10.0
     agent_box_weight: float = 1.0
     bev_semantic_weight: float = 14.0
-    use_ema: bool = False
+    use_ema: bool = True
     # BEV mapping
     bev_semantic_classes = {
         1: ("polygon", [SemanticMapLayer.LANE, SemanticMapLayer.INTERSECTION]),  # road
