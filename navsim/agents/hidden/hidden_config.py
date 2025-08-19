@@ -32,7 +32,7 @@ class HiddenConfig:
     lidar_max_y: float = 32
 
     lidar_split_height: float = 0.2
-    use_ground_plane: bool = False
+    use_ground_plane: bool = True
 
     # new
     lidar_seq_len: int = 1
@@ -87,7 +87,7 @@ class HiddenConfig:
     agent_class_weight: float = 10.0
     agent_box_weight: float = 1.0
     bev_semantic_weight: float = 14.0
-    use_ema: bool = True
+    use_ema: bool = False
     # BEV mapping
     bev_semantic_classes = {
         1: ("polygon", [SemanticMapLayer.LANE, SemanticMapLayer.INTERSECTION]),  # road
