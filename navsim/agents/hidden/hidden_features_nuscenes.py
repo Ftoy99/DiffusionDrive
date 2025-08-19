@@ -65,7 +65,19 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         # cv2.imwrite(str(output_dir / "stitched_camera.png"), img[:, :, ::-1])  # RGB→BGR
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
-
+        lidar_points = features["lidar_feature"]  # (N, 3)
+        bev_size = (512, 512)  # output image size
+        x_min, x_max = -50, 50
+        y_min, y_max = -50, 50
+        x_img = ((lidar_points[:, 0] - x_min) / (x_max - x_min) * (bev_size[0] - 1)).astype(np.int32)
+        y_img = ((lidar_points[:, 1] - y_min) / (y_max - y_min) * (bev_size[1] - 1)).astype(np.int32)
+        x_img = np.clip(x_img, 0, bev_size[0] - 1)
+        y_img = np.clip(y_img, 0, bev_size[1] - 1)
+        bev_img = np.zeros(bev_size, dtype=np.uint8)
+        bev_img[y_img, x_img] = 255
+        save_path = Path("/mnt/ds/debug/lidar_bev_processed_as_feature.png")
+        cv2.imwrite(str(save_path), bev_img)
+        print(f"Saved LiDAR BEV to {save_path}")
 
         features["status_feature"] = torch.concatenate(
             [
@@ -106,7 +118,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
 
         # only consider (x,y,z) & swap axes for (N,3) numpy array
         lidar_pc = agent_input.lidar[LidarIndex.POSITION].T
-
+        print(f"lidar_pc {lidar_pc}")
         # NOTE: Code from
         # https://github.com/autonomousvision/carla_garage/blob/main/team_code/data.py#L873
         def splat_points(point_cloud):
