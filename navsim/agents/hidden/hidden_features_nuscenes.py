@@ -132,6 +132,13 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
                 self._config.lidar_max_y,
                 (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
             )
+
+            x_min, x_max = lidar_pc[:, 0].min(), lidar_pc[:, 0].max()
+            y_min, y_max = lidar_pc[:, 1].min(), lidar_pc[:, 1].max()
+
+            xbins = np.linspace(x_min, x_max, 50)  # fewer bins for small area
+            ybins = np.linspace(y_min, y_max, 50)
+
             print("xbins:", len(xbins), "ybins:", len(ybins))
             hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
             # After histogram
