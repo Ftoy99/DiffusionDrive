@@ -139,7 +139,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
             print("Z min/max:", point_cloud[:, 2].min(), point_cloud[:, 2].max())
 
             hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
-
+            print(hist.shape)
             print(hist)
             # hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
             # overhead_splat = hist / self._config.hist_max_per_pixel
