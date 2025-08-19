@@ -81,6 +81,7 @@ def main():
     logger.info("Loading scenes")
 
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
+    logger.info(nusc)
 
     train_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_train]
     val_scenes = [s for s in nusc.scene if s['name'] in nusc.scene_val]
