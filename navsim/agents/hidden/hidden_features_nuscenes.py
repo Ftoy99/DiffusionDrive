@@ -142,6 +142,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         print("above After filter:", above.shape)
 
         above_features = splat_points(above)
+        print("above After splatting:", above.shape)
         if self._config.use_ground_plane:
             below_features = splat_points(below)
             features = np.stack([below_features, above_features], axis=-1)
