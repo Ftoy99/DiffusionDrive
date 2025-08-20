@@ -68,14 +68,14 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
 
         features["lidar_feature"] = self._get_lidar_feature(agent_input).cpu().numpy()
 
-        #
-        # features["status_feature"] = torch.concatenate(
-        #     [
-        #         torch.tensor(agent_input.ego_statuses[-1].driving_command, dtype=torch.float32),
-        #         torch.tensor(agent_input.ego_statuses[-1].ego_velocity, dtype=torch.float32),
-        #         torch.tensor(agent_input.ego_statuses[-1].ego_acceleration, dtype=torch.float32),
-        #     ],
-        # )
+
+        features["status_feature"] = torch.concatenate(
+            [
+                torch.tensor(agent_input.ego_statuses[-1].driving_command, dtype=torch.float32),
+                torch.tensor(agent_input.ego_statuses[-1].ego_velocity, dtype=torch.float32),
+                torch.tensor(agent_input.ego_statuses[-1].ego_acceleration, dtype=torch.float32),
+            ],
+        )
 
         return features
 
