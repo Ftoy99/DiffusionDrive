@@ -17,6 +17,8 @@ from nuscenes import NuScenes
 from nuscenes.can_bus.can_bus_api import NuScenesCanBus
 from nuscenes.utils.splits import train, val
 from nuscenes.utils.data_classes import LidarPointCloud
+from pyquaternion import Quaternion
+
 from navsim.agents.hidden.hidden_config import HiddenConfig
 from navsim.agents.hidden.hidden_features_nuscenes import HiddenFeatureBuilder, HiddenTargetBuilder, NuFeatureData, \
     NuTargetData
@@ -194,9 +196,44 @@ def main():
                 break
             sample_cur = nusc.get('sample', sample_cur['next'])
 
-        print(ego)
+        # Reference pose (current sample)
+        ref_ego_pose = nusc.get('ego_pose', sample['data']['LIDAR_TOP'])
+        ref_translation = np.array(ref_ego_pose['translation'])
+        ref_rotation = Quaternion(ref_ego_pose['rotation']).inverse.rotation_matrix
+
+        ego_fut_trajs_rel = []
+
+        for i in range(len(ego_fut_trajs)):
+            # Convert to numpy array
+            pos = np.array(ego_fut_trajs[i])
+            # Translate: move origin to current LiDAR
+            pos_rel = pos - ref_translation
+            # Rotate: align axes with current LiDAR
+            pos_rel = ref_rotation @ pos_rel
+            ego_fut_trajs_rel.append(pos_rel)
+
+        ego_fut_trajs_rel = np.array(ego_fut_trajs_rel)
+        print(ego_fut_trajs_rel)
 
         features = feature_builder.compute_features(feat_data)
+
+        bev_img_draw = features["lidar_feature"].copy()
+        bev_img_draw = bev_img_draw[:, :, 0]  # single channel
+
+        # Convert to uint8
+        bev_img_draw = (bev_img_draw * 255).astype(np.uint8)  # if values in [0,1]
+
+        H, W = bev_img_draw.shape
+        resolution = 0.1
+        origin = np.array([W // 2, H // 2])
+
+        for pos in ego_fut_trajs_rel:
+            x_px = int(origin[0] - pos[1] / resolution)
+            y_px = int(origin[1] - pos[0] / resolution)
+            cv2.circle(bev_img_draw, (x_px, y_px), 2, 255, -1)
+
+        cv2.imwrite(f"/mnt/ds/debug/{sample_cur['token']}_lidar_bev_img_with_traj_relative.png", bev_img_draw)
+
         target = target_builder.compute_targets(target_data)
 
     # data_points = [
