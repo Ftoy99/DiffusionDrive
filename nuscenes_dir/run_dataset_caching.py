@@ -148,7 +148,7 @@ def main():
         bev_img = np.zeros(bev_size, dtype=np.uint8)
         bev_img[y_img, x_img] = 255
 
-        save_path = Path("/mnt/ds/debug/lidar_bev.png")
+        save_path = Path(f"/mnt/ds/debug/{sample['token']}lidar_bev.png")
         cv2.imwrite(str(save_path), bev_img)
         print(f"Saved LiDAR BEV to {save_path}")
 
@@ -214,6 +214,19 @@ def main():
 
         ego_fut_trajs_rel = np.array(ego_fut_trajs_rel)
         print(ego_fut_trajs_rel)
+
+        ##ADD HERE
+        last = ego_fut_trajs_rel[len(ego_fut_trajs_rel) - 1]  # final step
+        if last[1] >= 2:
+            command = np.array([1, 0, 0])  # Turn Right
+            print("Turn right")
+        elif last[1] <= -2:
+            command = np.array([0, 1, 0])  # Turn Left
+            print("Turn left")
+        else:
+            command = np.array([0, 0, 1])  # Go Straight
+            print("Go straight")
+        feat_data.ego_driving_command = command
 
         features = feature_builder.compute_features(feat_data)
 
