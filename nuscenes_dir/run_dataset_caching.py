@@ -104,6 +104,7 @@ def main():
     feat_data = NuFeatureData()
     target_data = NuTargetData()
 
+    #For each scene
     for scene in nusc.scene:
         first_sample = scene["first_sample_token"]
         sample = nusc.get('sample', first_sample)
@@ -167,10 +168,33 @@ def main():
             msg = before if abs(before['utime'] - sample_data_timestamp) < abs(after['utime'] - sample_data_timestamp) else after
 
         # get vel
-
         feat_data.ego_velocity = np.linalg.norm(np.array(msg['vel']))
-
         feat_data.ego_acceleration = np.linalg.norm(np.array(msg['accel']))
+
+
+        # Driving command meta-action etc.
+        # We are at sample T
+        # We want the current position and then positions for x T+{1....x}
+        # After we have the coordinates we want to translate them to our relative lidar So we have values close to 0.0 of current position
+
+        #Based on the future waypoint poses/locations offsets we can determine the meta actions we must take.
+
+
+        #if we are at a sample we dont have enough future trajectories keep the last meta-action
+        num_of_samples_to_look = 7
+        sample_cur = sample  # starting sample at time T
+        ego_fut_trajs = {}
+        for i in range(num_of_samples_to_look + 1):
+            # Get ego global position for this sample
+            ego_pose = nusc.get('ego_pose',sample_cur['data']['LIDAR_TOP'])
+            ego_fut_trajs[i] = ego_pose['translation']  # extract x, y, z
+
+            # Move to next sample if exists
+            if sample_cur['next'] == '':
+                break
+            sample_cur = nusc.get('sample', sample_cur['next'])
+
+        print(ego)
 
         features = feature_builder.compute_features(feat_data)
         target = target_builder.compute_targets(target_data)
