@@ -1,3 +1,4 @@
+import bisect
 from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
 import logging
@@ -13,6 +14,7 @@ import pytorch_lightning as pl
 from nuplan.planning.utils.multithreading.worker_utils import worker_map
 from nuplan.planning.utils.multithreading.worker_ray import RayDistributed
 from nuscenes import NuScenes
+from nuscenes.can_bus.can_bus_api import NuScenesCanBus
 from nuscenes.utils.splits import train, val
 from nuscenes.utils.data_classes import LidarPointCloud
 from navsim.agents.hidden.hidden_config import HiddenConfig
@@ -90,7 +92,7 @@ def main():
 
     logger.info("Loading scenes")
     nusc = NuScenes(version=VERSION, dataroot=DATA_PATH, verbose=True)
-
+    nusc_can_bus = NuScenesCanBus(DATA_PATH)
     logger.info(f"Loaded {len(train)} train scenes and {len(val)} valuation scenes")
 
     cfg = HiddenConfig()
@@ -121,6 +123,7 @@ def main():
         # LiDAR features
         lidar_token = sample['data']['LIDAR_TOP']
         sample_data = nusc.get('sample_data', lidar_token)
+        sample_data_timestamp = sample_data['timestamp']
         lidar_path = Path(nusc.dataroot) / sample_data['filename']
 
         # Load point cloud
@@ -129,6 +132,8 @@ def main():
 
         feat_data.lidar = points  # store in your feature data
 
+
+        #Lidar debug image original
         lidar_points = feat_data.lidar  # (N, 3)
         bev_size = (512, 512)  # output image size
         x_min, x_max = -50, 50
@@ -143,6 +148,29 @@ def main():
         save_path = Path("/mnt/ds/debug/lidar_bev.png")
         cv2.imwrite(str(save_path), bev_img)
         print(f"Saved LiDAR BEV to {save_path}")
+
+        #Ego status
+        pose_data = nusc_can_bus.get_messages(scene["name"],"pose")
+        #Multiple timestamps for each scene we need to filter with utime
+        # extract timestamps
+        times = [msg['utime'] for msg in pose_data]
+
+        # find closest CAN timestamp
+        idx = bisect.bisect_left(times, sample_data_timestamp)
+        if idx == 0:
+            msg = pose_data[0]
+        elif idx == len(times):
+            msg = pose_data[-1]
+        else:
+            before = pose_data[idx - 1]
+            after = pose_data[idx]
+            msg = before if abs(before['utime'] - sample_data_timestamp) < abs(after['utime'] - sample_data_timestamp) else after
+
+        # get vel
+
+        feat_data.ego_velocity = np.linalg.norm(np.array(msg['vel']))
+
+        feat_data.ego_acceleration = np.linalg.norm(np.array(msg['accel']))
 
         features = feature_builder.compute_features(feat_data)
         target = target_builder.compute_targets(target_data)

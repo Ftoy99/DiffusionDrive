@@ -34,6 +34,9 @@ class NuFeatureData:
     def __init__(self):
         self.images = {}
         self.lidar = None
+        self.ego_driving_command = None
+        self.ego_velocity = None
+        self.ego_acceleration = None
 
 
 class NuTargetData:
@@ -71,9 +74,9 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
 
         features["status_feature"] = torch.concatenate(
             [
-                torch.tensor(agent_input.ego_statuses[-1].driving_command, dtype=torch.float32),
-                torch.tensor(agent_input.ego_statuses[-1].ego_velocity, dtype=torch.float32),
-                torch.tensor(agent_input.ego_statuses[-1].ego_acceleration, dtype=torch.float32),
+                torch.tensor(agent_input.ego_driving_command, dtype=torch.float32),
+                torch.tensor(agent_input.ego_velocity, dtype=torch.float32),
+                torch.tensor(agent_input.ego_acceleration, dtype=torch.float32),
             ],
         )
 
