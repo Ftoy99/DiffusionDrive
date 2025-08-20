@@ -8,6 +8,7 @@ import os
 import cv2
 import numpy as np
 from hydra.utils import instantiate
+from nuplan.common.actor_state.state_representation import StateSE2
 from omegaconf import DictConfig
 import pytorch_lightning as pl
 
@@ -186,11 +187,12 @@ def main():
         num_of_samples_to_look = 7
         sample_cur = sample  # starting sample at time T
         ego_fut_trajs = {}
+        ego_fut_heading = {}
         for i in range(num_of_samples_to_look + 1):
             # Get ego global position for this sample
             ego_pose = nusc.get('ego_pose',sample_cur['data']['LIDAR_TOP'])
             ego_fut_trajs[i] = ego_pose['translation']  # extract x, y, z
-
+            ego_fut_heading[i] = Quaternion(ego_pose['rotation']).yaw_pitch_roll[0]
             # Move to next sample if exists
             if sample_cur['next'] == '':
                 break
@@ -246,6 +248,26 @@ def main():
             cv2.circle(bev_img_draw, (x_px, y_px), 2, 255, -1)
 
         cv2.imwrite(f"/mnt/ds/debug/{sample_cur['token']}_lidar_bev_img_with_traj_relative.png", bev_img_draw)
+
+        ############################
+        ## TARGET DATA GENERATION ##
+        ############################
+
+        #Future trajectories
+        num_poses = min(5, len(ego_fut_heading))
+        target_data.trajectory = [
+            StateSE2(ego_fut_trajs_rel[i][0], ego_fut_trajs_rel[i][1], ego_fut_heading[i])
+            for i in range(1,num_poses)
+        ]
+
+        # Get annotations
+        annotations = []
+        for annotation_id in sample['anns']:
+            annotation = nusc.get("sample_annotation",annotation_id)
+            annotations.append(annotation)
+        target_data.annotations = annotations
+        target_data.ego_pose_global_cords = nusc.get('ego_pose',sample_cur['data']['LIDAR_TOP'])['translation']
+        target_data.ego_pose_heading= Quaternion(nusc.get('ego_pose',sample_cur['data']['LIDAR_TOP'])['rotation']).yaw_pitch_roll[0]
 
         target = target_builder.compute_targets(target_data)
 

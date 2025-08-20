@@ -7,6 +7,7 @@ import numpy.typing as npt
 
 from pathlib import Path
 import torch
+from pyquaternion import Quaternion
 from torchvision import transforms
 from torchvision.transforms import ToPILImage, ToTensor
 
@@ -27,6 +28,22 @@ from navsim.planning.training.abstract_feature_target_builder import AbstractFea
 from navsim.agents.hidden.depth_gaze import depth_inf
 
 front_cameras = ["CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_FRONT_LEFT"]
+NameMapping = {
+    "movable_object.barrier": "barrier",
+    "vehicle.bicycle": "vehicle",
+    "vehicle.bus.bendy": "vehicle",
+    "vehicle.bus.rigid": "vehicle",
+    "vehicle.car": "vehicle",
+    "vehicle.construction": "vehicle",
+    "vehicle.motorcycle": "vehicle",
+    "human.pedestrian.adult": "pedestrian",
+    "human.pedestrian.child": "pedestrian",
+    "human.pedestrian.construction_worker": "pedestrian",
+    "human.pedestrian.police_officer": "pedestrian",
+    "movable_object.trafficcone": "traffic_cone",
+    "vehicle.trailer": "vehicle",
+    "vehicle.truck": "vehicle",
+}
 
 
 class NuFeatureData:
@@ -40,7 +57,12 @@ class NuFeatureData:
 
 
 class NuTargetData:
-    pass
+
+    def __init__(self):
+        self.trajectory = None
+        self.annotations = []
+        self.ego_pose_global_cords = None
+        self.ego_pose_heading = None
 
 
 class HiddenFeatureBuilder(AbstractFeatureBuilder):
@@ -231,49 +253,48 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         """Inherited, see superclass."""
         return "transfuser_target"
 
-    def compute_targets(self, scene: Scene) -> Dict[str, torch.Tensor]:
+    def compute_targets(self, data: NuTargetData) -> Dict[str, torch.Tensor]:
         """Inherited, see superclass."""
 
-        trajectory = torch.tensor(
-            scene.get_future_trajectory(num_trajectory_frames=self._config.trajectory_sampling.num_poses).poses
-        )
-        frame_idx = scene.scene_metadata.num_history_frames - 1
-        annotations = scene.frames[frame_idx].annotations
-        ego_pose = StateSE2(*scene.frames[frame_idx].ego_status.ego_pose)
+        trajectory = data.trajectory
 
-        agent_states, agent_labels = self._compute_agent_targets(annotations)
-        bev_semantic_map = self._compute_bev_semantic_map(annotations, scene.map_api, ego_pose)
+        ego_pose = StateSE2(data.ego_pose_global_cords[0],data.ego_pose_global_cords[0],data.ego_pose_heading)
+
+        agent_states, agent_labels = self._compute_agent_targets(data.annotations,data)
+
+        bev_semantic_map = self._compute_bev_semantic_map(data.annotations, data.map_api, ego_pose)
 
         return {
-            "trajectory": trajectory,
-            "agent_states": agent_states,
-            "agent_labels": agent_labels,
+            "trajectory": trajectory, # x y heading
+            "agent_states": agent_states, # Agents in 5 dim tensor
+            "agent_labels": agent_labels, # Tree false mask
             "bev_semantic_map": bev_semantic_map,
         }
 
-    def _compute_agent_targets(self, annotations: Annotations) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _compute_agent_targets(self, annotations,data):
         """
         Extracts 2D agent bounding boxes in ego coordinates
         :param annotations: annotation dataclass
         :return: tuple of bounding box values and labels (binary)
         """
-
         max_agents = self._config.num_bounding_boxes
         agent_states_list: List[npt.NDArray[np.float32]] = []
 
         def _xy_in_lidar(x: float, y: float, config: HiddenConfig) -> bool:
             return (config.lidar_min_x <= x <= config.lidar_max_x) and (config.lidar_min_y <= y <= config.lidar_max_y)
 
-        for box, name in zip(annotations.boxes, annotations.names):
+        for annotation in annotations:
             box_x, box_y, box_heading, box_length, box_width = (
-                box[BoundingBoxIndex.X],
-                box[BoundingBoxIndex.Y],
-                box[BoundingBoxIndex.HEADING],
-                box[BoundingBoxIndex.LENGTH],
-                box[BoundingBoxIndex.WIDTH],
+                annotation["translation"][0] - data.ego_pose_global_cords[0],
+                annotation["translation"][1] - data.ego_pose_global_cords[1],
+                Quaternion(annotation["rotation"]).yaw_pitch_roll[0],
+                annotation["size"][0],
+                annotation["size"][1],
             )
-
-            if name == "vehicle" and _xy_in_lidar(box_x, box_y, self._config):
+            category = annotation['category_name']
+            if category not in NameMapping:
+                continue
+            if NameMapping[category] == "vehicle" and _xy_in_lidar(box_x, box_y, self._config):
                 agent_states_list.append(np.array([box_x, box_y, box_heading, box_length, box_width], dtype=np.float32))
 
         agents_states_arr = np.array(agent_states_list)
