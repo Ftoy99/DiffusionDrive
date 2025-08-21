@@ -335,6 +335,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
             ego_pose.point.y + self._config.bev_radius,
         )
         #TODO HERE FIX
+        map.layer_names
         map_api.get_map_geom(patch, ego_pose.heading, ["drivable_area"])
         records = map_api.get_records_in_patch(patch, )
 
