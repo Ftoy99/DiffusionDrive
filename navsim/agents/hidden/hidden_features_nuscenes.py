@@ -1,11 +1,10 @@
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 import cv2
 import numpy as np
 import numpy.typing as npt
 
-from pathlib import Path
 import torch
 from pyquaternion import Quaternion
 from torchvision import transforms
@@ -18,10 +17,8 @@ from nuplan.common.maps.abstract_map import AbstractMap, SemanticMapLayer, MapOb
 from nuplan.common.actor_state.oriented_box import OrientedBox
 from nuplan.common.actor_state.state_representation import StateSE2
 from nuplan.common.actor_state.tracked_objects_types import TrackedObjectType
-
+from nuscenes.map_expansion.map_api import NuScenesMap, NuScenesMapExplorer
 from navsim.agents.hidden.hidden_config import HiddenConfig
-from navsim.common.dataclasses import AgentInput, Scene, Annotations
-from navsim.common.enums import BoundingBoxIndex, LidarIndex
 from navsim.planning.scenario_builder.navsim_scenario_utils import tracked_object_types
 from navsim.planning.training.abstract_feature_target_builder import AbstractFeatureBuilder, AbstractTargetBuilder
 
@@ -63,6 +60,8 @@ class NuTargetData:
         self.annotations = []
         self.ego_pose_global_cords = None
         self.ego_pose_heading = None
+        self.map_api = None
+        self.map = None
 
 
 class HiddenFeatureBuilder(AbstractFeatureBuilder):
@@ -261,8 +260,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         ego_pose = StateSE2(data.ego_pose_global_cords[0],data.ego_pose_global_cords[0],data.ego_pose_heading)
 
         agent_states, agent_labels = self._compute_agent_targets(data.annotations,data)
-
-        bev_semantic_map = self._compute_bev_semantic_map(data.annotations, data.map_api, ego_pose)
+        bev_semantic_map = self._compute_bev_semantic_map(data,data.map,data.map_api,ego_pose)
 
         return {
             "trajectory": trajectory, # x y heading
@@ -315,7 +313,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         return torch.tensor(agent_states), torch.tensor(agent_labels)
 
     def _compute_bev_semantic_map(
-            self, annotations: Annotations, map_api: AbstractMap, ego_pose: StateSE2
+            self, annotations, map : NuScenesMap, map_api: NuScenesMapExplorer, ego_pose: StateSE2
     ) -> torch.Tensor:
         """
         Creates sematic map in BEV
@@ -326,11 +324,12 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         """
 
         bev_semantic_map = np.zeros(self._config.bev_semantic_frame, dtype=np.int64)
+
         for label, (entity_type, layers) in self._config.bev_semantic_classes.items():
             if entity_type == "polygon":
-                entity_mask = self._compute_map_polygon_mask(map_api, ego_pose, layers)
+                entity_mask = self._compute_map_polygon_mask(map,map_api, ego_pose, layers)
             elif entity_type == "linestring":
-                entity_mask = self._compute_map_linestring_mask(map_api, ego_pose, layers)
+                entity_mask = self._compute_map_linestring_mask(map,map_api, ego_pose, layers)
             else:
                 entity_mask = self._compute_box_mask(annotations, layers)
             bev_semantic_map[entity_mask] = label
@@ -338,8 +337,15 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         return torch.Tensor(bev_semantic_map)
 
     def _compute_map_polygon_mask(
-            self, map_api: AbstractMap, ego_pose: StateSE2, layers: List[SemanticMapLayer]
+            self,map:NuScenesMap, map_api: NuScenesMapExplorer, ego_pose: StateSE2, layers: List[SemanticMapLayer]
     ) -> npt.NDArray[np.bool_]:
+        """
+        Compute binary mask given a map layer class
+        :param map_api: map interface of nuPlan
+        :param ego_pose: ego pose in global frame
+        :param layers: map layers
+        :return: binary mask as numpy array
+        """
         """
         Compute binary mask given a map layer class
         :param map_api: map interface of nuPlan
@@ -363,7 +369,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         return map_polygon_mask > 0
 
     def _compute_map_linestring_mask(
-            self, map_api: AbstractMap, ego_pose: StateSE2, layers: List[SemanticMapLayer]
+            self,map:NuScenesMap, map_api: NuScenesMapExplorer, ego_pose: StateSE2, layers: List[SemanticMapLayer]
     ) -> npt.NDArray[np.bool_]:
         """
         Compute binary of linestring given a map layer class
@@ -372,12 +378,18 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         :param layers: map layers
         :return: binary mask as numpy array
         """
-        map_object_dict = map_api.get_proximal_map_objects(
-            point=ego_pose.point, radius=self._config.bev_radius, layers=layers
+        # map_object_dict = map_api.get_proximal_map_objects(
+        #     point=ego_pose.point, radius=self._config.bev_radius, layers=layers
+        # )
+        patch_box = (
+        ego_pose.point.x, ego_pose.point.y, self._config.bev_radius, self._config.bev_radius)  # (xc, yc, w, h)
+        # Query objects that intersect with patch
+        map_objects = map_api.get_records_in_patch(
+            patch_box, mode='intersect'
         )
         map_linestring_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
-        for layer in layers:
-            for map_object in map_object_dict[layer]:
+        for layer in map_objects:
+            for map_object in map_objects[layer]:
                 linestring: LineString = self._geometry_local_coords(map_object.baseline_path.linestring, ego_pose)
                 points = np.array(linestring.coords).reshape((-1, 1, 2))
                 points = self._coords_to_pixel(points)
@@ -386,7 +398,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         map_linestring_mask = np.rot90(map_linestring_mask)[::-1]
         return map_linestring_mask > 0
 
-    def _compute_box_mask(self, annotations: Annotations, layers: TrackedObjectType) -> npt.NDArray[np.bool_]:
+    def _compute_box_mask(self, data, layers: TrackedObjectType) -> npt.NDArray[np.bool_]:
         """
         Compute binary of bounding boxes in BEV space
         :param annotations: annotation dataclass
@@ -394,12 +406,15 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         :return: binary mask as numpy array
         """
         box_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
-        for name_value, box_value in zip(annotations.names, annotations.boxes):
-            agent_type = tracked_object_types[name_value]
+        for ann in data.annotations:
+            category = ann['category_name']
+            if category not in NameMapping:
+                continue
+            agent_type = tracked_object_types[NameMapping[ann["category_name"]]]
             if agent_type in layers:
                 # box_value = (x, y, z, length, width, height, yaw) TODO: add intenum
-                x, y, heading = box_value[0], box_value[1], box_value[-1]
-                box_length, box_width, box_height = box_value[3], box_value[4], box_value[5]
+                x, y, heading = ann["translation"][0], ann["translation"][1] ,Quaternion(ann["rotation"]).yaw_pitch_roll[0]
+                box_length, box_width, box_height = ann["size"][0],ann["size"][1],ann["size"][2]
                 agent_box = OrientedBox(StateSE2(x, y, heading), box_length, box_width, box_height)
                 exterior = np.array(agent_box.geometry.exterior.coords).reshape((-1, 1, 2))
                 exterior = self._coords_to_pixel(exterior)

@@ -159,6 +159,8 @@ class NuscMapExtractor(object):
             final_pgeom.append(pgeom)
 
             for o in tree.query(pgeom):
+                if id(o) not in index_by_id:
+                    continue
                 o_idx = index_by_id[id(o)]
                 if o_idx not in remain_idx:
                     continue
@@ -267,13 +269,13 @@ def get_ped_crossing_contour(polygon,
     if not ext.is_ccw:
         ext = LinearRing(list(ext.coords)[::-1])
     lines = ext.intersection(local_patch)
-    if lines.type != 'LineString':
+    if lines.geom_type != 'LineString':
         # remove points in intersection results
         lines = [l for l in lines.geoms if l.geom_type != 'Point']
         lines = ops.linemerge(lines)
 
         # same instance but not connected.
-        if lines.type != 'LineString':
+        if lines.geom_type != 'LineString':
             ls = []
             for l in lines.geoms:
                 ls.append(np.array(l.coords))

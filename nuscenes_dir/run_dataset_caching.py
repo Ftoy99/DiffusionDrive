@@ -12,8 +12,6 @@ from nuplan.common.actor_state.state_representation import StateSE2
 from omegaconf import DictConfig
 import pytorch_lightning as pl
 
-from nuplan.planning.utils.multithreading.worker_utils import worker_map
-from nuplan.planning.utils.multithreading.worker_ray import RayDistributed
 from nuscenes import NuScenes
 from nuscenes.can_bus.can_bus_api import NuScenesCanBus
 from nuscenes.utils.splits import train, val
@@ -268,6 +266,15 @@ def main():
         target_data.annotations = annotations
         target_data.ego_pose_global_cords = nusc.get('ego_pose',sample_cur['data']['LIDAR_TOP'])['translation']
         target_data.ego_pose_heading= Quaternion(nusc.get('ego_pose',sample_cur['data']['LIDAR_TOP'])['rotation']).yaw_pitch_roll[0]
+
+        from nuscenes.map_expansion.map_api import NuScenesMap, NuScenesMapExplorer
+        map = NuScenesMap(
+            dataroot=DATA_PATH,
+            map_name=nusc.get('log', scene['log_token'])['location']
+        )
+        target_data.map = map
+        map_api = NuScenesMapExplorer(map)
+        target_data.map_api = map_api
 
         target = target_builder.compute_targets(target_data)
 
