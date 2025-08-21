@@ -323,16 +323,33 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         :return: 2D torch tensor of semantic labels
         """
 
-        bev_semantic_map = np.zeros(self._config.bev_semantic_frame, dtype=np.int64)
+        bev_semantic_map = np.zeros(self._config.bev_semantic_frame, dtype=np.int64) # Create the empty semantic frame x,y
 
-        for label, (entity_type, layers) in self._config.bev_semantic_classes.items():
-            if entity_type == "polygon":
-                entity_mask = self._compute_map_polygon_mask(map,map_api, ego_pose, layers)
-            elif entity_type == "linestring":
-                entity_mask = self._compute_map_linestring_mask(map,map_api, ego_pose, layers)
-            else:
-                entity_mask = self._compute_box_mask(annotations, layers)
-            bev_semantic_map[entity_mask] = label
+        # Label         Number we put in mask
+        # Entity type   How we draw it
+        # Layer         enum for layers
+        patch = (
+            ego_pose.point.x - self._config.bev_radius,
+            ego_pose.point.y - self._config.bev_radius,
+            ego_pose.point.x + self._config.bev_radius,
+            ego_pose.point.y + self._config.bev_radius,
+        )
+        #TODO HERE FIX
+        map_api.get_map_geom(patch, ego_pose.heading, ["drivable_area"])
+        records = map_api.get_records_in_patch(patch, )
+
+        for layer in records:
+            for record in records[layer]:
+                print(record)
+            #TODO
+                for label, (entity_type, layers) in self._config.bev_semantic_classes.items():
+                    if entity_type == "polygon":
+                        entity_mask = self._compute_map_polygon_mask(map,map_api, ego_pose, layers)
+                    elif entity_type == "linestring":
+                        entity_mask = self._compute_map_linestring_mask(map,map_api, ego_pose, layers)
+                    else:
+                        entity_mask = self._compute_box_mask(annotations, layers)
+                    bev_semantic_map[entity_mask] = label
 
         return torch.Tensor(bev_semantic_map)
 
@@ -353,18 +370,17 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         :param layers: map layers
         :return: binary mask as numpy array
         """
-
-        map_object_dict = map_api.get_proximal_map_objects(
-            point=ego_pose.point, radius=self._config.bev_radius, layers=layers
-        )
+        # Create the mask
         map_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
-        for layer in layers:
-            for map_object in map_object_dict[layer]:
-                polygon: Polygon = self._geometry_local_coords(map_object.polygon, ego_pose)
-                exterior = np.array(polygon.exterior.coords).reshape((-1, 1, 2))
-                exterior = self._coords_to_pixel(exterior)
-                cv2.fillPoly(map_polygon_mask, [exterior], color=255)
-        # OpenCV has origin on top-left corner
+        # map_api.patch
+        #
+        # for layer in layers:
+        #     for map_object in map_object_dict[layer]:
+        #         polygon: Polygon = self._geometry_local_coords(map_object.polygon, ego_pose)
+        #         exterior = np.array(polygon.exterior.coords).reshape((-1, 1, 2))
+        #         exterior = self._coords_to_pixel(exterior)
+        #         cv2.fillPoly(map_polygon_mask, [exterior], color=255)
+        # # OpenCV has origin on top-left corner
         map_polygon_mask = np.rot90(map_polygon_mask)[::-1]
         return map_polygon_mask > 0
 
