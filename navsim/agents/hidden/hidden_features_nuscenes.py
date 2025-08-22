@@ -252,7 +252,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         """Inherited, see superclass."""
         return "transfuser_target"
 
-    def compute_targets(self, data: NuTargetData) -> Dict[str, torch.Tensor]:
+    def compute_targets(self, data: NuTargetData, nusc, sample) -> Dict[str, torch.Tensor]:
         """Inherited, see superclass."""
 
         trajectory = data.trajectory
@@ -260,7 +260,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         ego_pose = StateSE2(data.ego_pose_global_cords[0],data.ego_pose_global_cords[0],data.ego_pose_heading)
 
         agent_states, agent_labels = self._compute_agent_targets(data.annotations,data)
-        bev_semantic_map = self._compute_bev_semantic_map(data,data.map,data.map_api,ego_pose)
+        bev_semantic_map = self._compute_bev_semantic_map(data,data.map,data.map_api,ego_pose,nusc,sample)
 
         return {
             "trajectory": trajectory, # x y heading
@@ -313,49 +313,72 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         return torch.tensor(agent_states), torch.tensor(agent_labels)
 
     def _compute_bev_semantic_map(
-            self, annotations, map : NuScenesMap, map_api: NuScenesMapExplorer, ego_pose: StateSE2
+            self, data, map : NuScenesMap, map_api: NuScenesMapExplorer, ego_pose: StateSE2 , nusc , sample
     ) -> torch.Tensor:
         """
         Creates sematic map in BEV
-        :param annotations: annotation dataclass
-        :param map_api: map interface of nuPlan
-        :param ego_pose: ego pose in global frame
-        :return: 2D torch tensor of semantic labels
         """
-
+        # Create the semantic map
         bev_semantic_map = np.zeros(self._config.bev_semantic_frame, dtype=np.int64) # Create the empty semantic frame x,y
 
-        # Label         Number we put in mask
-        # Entity type   How we draw it
-        # Layer         enum for layers
+        # Patch of all records we want to get
         patch = (
             ego_pose.point.x - self._config.bev_radius,
             ego_pose.point.y - self._config.bev_radius,
             ego_pose.point.x + self._config.bev_radius,
             ego_pose.point.y + self._config.bev_radius,
         )
-        #TODO HERE FIX
-        map.layer_names
-        map_api.get_map_geom(patch, ego_pose.heading, ["drivable_area"])
-        records = map_api.get_records_in_patch(patch, )
 
+        #Static map stuff we must draw
+
+        #Polygons
+        records = map_api.get_records_in_patch(patch,["drivable_area","road_segment","lane",])
         for layer in records:
             for record in records[layer]:
-                print(record)
-            #TODO
-                for label, (entity_type, layers) in self._config.bev_semantic_classes.items():
-                    if entity_type == "polygon":
-                        entity_mask = self._compute_map_polygon_mask(map,map_api, ego_pose, layers)
-                    elif entity_type == "linestring":
-                        entity_mask = self._compute_map_linestring_mask(map,map_api, ego_pose, layers)
-                    else:
-                        entity_mask = self._compute_box_mask(annotations, layers)
-                    bev_semantic_map[entity_mask] = label
+                bounds = map_api.get_bounds(layer,record)
+                entity_mask = self._compute_map_polygon_mask(map, map_api,bounds, ego_pose)
+                bev_semantic_map[entity_mask] = 1
+                print("draw 1")
 
+        records = map_api.get_records_in_patch(patch,["walkway",])
+        for layer in records:
+            for record in records[layer]:
+                bounds = map_api.get_bounds(layer,record)
+                entity_mask = self._compute_map_polygon_mask(map, map_api,bounds, ego_pose)
+                bev_semantic_map[entity_mask] = 2
+                print("draw 2")
+
+        records = map_api.get_records_in_patch(patch,["lane"])
+        for layer in records:
+            for record in records[layer]:
+                bounds = map_api.get_bounds(layer,record)
+                entity_mask = self._compute_map_linestring_mask(map, map_api,bounds, ego_pose)
+                bev_semantic_map[entity_mask] = 3
+                print("draw 3")
+
+        #Dynamic map stuff we must draw
+        for annotation in data.annotations:
+            if annotation["category_name"].startswith("movable_object.") or annotation["category_name"].startswith("static_object."):
+                entity_mask = self._compute_box_mask(annotation, ego_pose)
+                bev_semantic_map[entity_mask] = 4
+                print("draw 4")
+
+            elif annotation["category_name"].startswith("vehicle."):
+                entity_mask = self._compute_box_mask(annotation, ego_pose)
+                bev_semantic_map[entity_mask] = 5
+                print("draw 5")
+
+            elif annotation["category_name"].startswith("human."):
+                entity_mask = self._compute_box_mask(annotation, ego_pose)
+                bev_semantic_map[entity_mask] = 6
+                print("draw 6")
+
+            else:
+                print(annotation["category_name"])
         return torch.Tensor(bev_semantic_map)
 
     def _compute_map_polygon_mask(
-            self,map:NuScenesMap, map_api: NuScenesMapExplorer, ego_pose: StateSE2, layers: List[SemanticMapLayer]
+            self,map:NuScenesMap, map_api: NuScenesMapExplorer,bounds, ego_pose: StateSE2
     ) -> npt.NDArray[np.bool_]:
         """
         Compute binary mask given a map layer class
@@ -368,25 +391,54 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         Compute binary mask given a map layer class
         :param map_api: map interface of nuPlan
         :param ego_pose: ego pose in global frame
-        :param layers: map layers
         :return: binary mask as numpy array
         """
         # Create the mask
         map_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
-        # map_api.patch
-        #
-        # for layer in layers:
-        #     for map_object in map_object_dict[layer]:
-        #         polygon: Polygon = self._geometry_local_coords(map_object.polygon, ego_pose)
-        #         exterior = np.array(polygon.exterior.coords).reshape((-1, 1, 2))
-        #         exterior = self._coords_to_pixel(exterior)
-        #         cv2.fillPoly(map_polygon_mask, [exterior], color=255)
-        # # OpenCV has origin on top-left corner
-        map_polygon_mask = np.rot90(map_polygon_mask)[::-1]
-        return map_polygon_mask > 0
+
+        x_min, y_min, x_max, y_max = bounds
+        pts = np.array([
+            [x_min, y_min],
+            [x_min, y_max],
+            [x_max, y_max],
+            [x_max, y_min]
+        ], dtype=np.float32)
+
+        # Translate to ego frame
+        pts -= np.array([ego_pose.point.x, ego_pose.point.y])
+        c, s = np.cos(-ego_pose.heading), np.sin(-ego_pose.heading)
+        R = np.array([[c, -s], [s, c]])
+        pts_local = pts @ R.T
+
+        # Convert to pixel coordinates
+        scale = self._config.bev_pixel_height / (2 * self._config.bev_radius)
+        pts_pix = ((pts_local + self._config.bev_radius) * scale).astype(np.int32)
+
+        # Clip to frame
+        pts_pix[:, 0] = np.clip(pts_pix[:, 0], 0, self._config.bev_pixel_width - 1)
+        pts_pix[:, 1] = np.clip(pts_pix[:, 1], 0, self._config.bev_pixel_height - 1)
+
+
+        cv2.fillPoly(map_polygon_mask, [pts_pix], color=255)
+
+        # Rotate/flip to match BEV convention
+        mask = np.rot90(map_polygon_mask)[::-1]
+        return mask > 0
+        # # bounds_rel = Null
+        # # # map_api.patch
+        # # #
+        # # # for layer in layers:
+        # # #     for map_object in map_object_dict[layer]:
+        # #         polygon: Polygon = self._geometry_local_coords(map_object.polygon, ego_pose)
+        # #         exterior = np.array(polygon.exterior.coords).reshape((-1, 1, 2))
+        # #         exterior = self._coords_to_pixel(exterior)
+        # #         cv2.fillPoly(map_polygon_mask, [exterior], color=255)
+        # # # OpenCV has origin on top-left corner
+        # map_polygon_mask = np.rot90(map_polygon_mask)[::-1]
+        # return map_polygon_mask > 0
 
     def _compute_map_linestring_mask(
-            self,map:NuScenesMap, map_api: NuScenesMapExplorer, ego_pose: StateSE2, layers: List[SemanticMapLayer]
+            self,map:NuScenesMap, map_api: NuScenesMapExplorer,bounds, ego_pose: StateSE2
     ) -> npt.NDArray[np.bool_]:
         """
         Compute binary of linestring given a map layer class
@@ -398,47 +450,109 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         # map_object_dict = map_api.get_proximal_map_objects(
         #     point=ego_pose.point, radius=self._config.bev_radius, layers=layers
         # )
-        patch_box = (
-        ego_pose.point.x, ego_pose.point.y, self._config.bev_radius, self._config.bev_radius)  # (xc, yc, w, h)
-        # Query objects that intersect with patch
-        map_objects = map_api.get_records_in_patch(
-            patch_box, mode='intersect'
-        )
-        map_linestring_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
-        for layer in map_objects:
-            for map_object in map_objects[layer]:
-                linestring: LineString = self._geometry_local_coords(map_object.baseline_path.linestring, ego_pose)
-                points = np.array(linestring.coords).reshape((-1, 1, 2))
-                points = self._coords_to_pixel(points)
-                cv2.polylines(map_linestring_mask, [points], isClosed=False, color=255, thickness=2)
-        # OpenCV has origin on top-left corner
-        map_linestring_mask = np.rot90(map_linestring_mask)[::-1]
-        return map_linestring_mask > 0
+        # Create the mask
+        map_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
 
-    def _compute_box_mask(self, data, layers: TrackedObjectType) -> npt.NDArray[np.bool_]:
+        x_min, y_min, x_max, y_max = bounds
+        pts = np.array([
+            [x_min, y_min],
+            [x_min, y_max],
+            [x_max, y_max],
+            [x_max, y_min]
+        ], dtype=np.float32)
+
+        # Translate to ego frame
+        pts -= np.array([ego_pose.point.x, ego_pose.point.y])
+        c, s = np.cos(-ego_pose.heading), np.sin(-ego_pose.heading)
+        R = np.array([[c, -s], [s, c]])
+        pts_local = pts @ R.T
+
+        # Convert to pixel coordinates
+        scale = self._config.bev_pixel_height / (2 * self._config.bev_radius)
+        pts_pix = ((pts_local + self._config.bev_radius) * scale).astype(np.int32)
+
+        # Clip to frame
+        pts_pix[:, 0] = np.clip(pts_pix[:, 0], 0, self._config.bev_pixel_width - 1)
+        pts_pix[:, 1] = np.clip(pts_pix[:, 1], 0, self._config.bev_pixel_height - 1)
+
+        # For linestring
+        pts = np.array(pts_pix, dtype=np.int32)
+        cv2.polylines(map_polygon_mask, [pts], isClosed=False, color=255, thickness=1)
+
+        # Rotate/flip to match BEV convention
+        mask = np.rot90(map_polygon_mask)[::-1]
+        return mask > 0
+
+    def _compute_box_mask(self, ann, ego) -> npt.NDArray[np.bool_]:
         """
         Compute binary of bounding boxes in BEV space
         :param annotations: annotation dataclass
         :param layers: bounding box labels to include
         :return: binary mask as numpy array
         """
-        box_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
-        for ann in data.annotations:
-            category = ann['category_name']
-            if category not in NameMapping:
-                continue
-            agent_type = tracked_object_types[NameMapping[ann["category_name"]]]
-            if agent_type in layers:
-                # box_value = (x, y, z, length, width, height, yaw) TODO: add intenum
-                x, y, heading = ann["translation"][0], ann["translation"][1] ,Quaternion(ann["rotation"]).yaw_pitch_roll[0]
-                box_length, box_width, box_height = ann["size"][0],ann["size"][1],ann["size"][2]
-                agent_box = OrientedBox(StateSE2(x, y, heading), box_length, box_width, box_height)
-                exterior = np.array(agent_box.geometry.exterior.coords).reshape((-1, 1, 2))
-                exterior = self._coords_to_pixel(exterior)
-                cv2.fillPoly(box_polygon_mask, [exterior], color=255)
-        # OpenCV has origin on top-left corner
-        box_polygon_mask = np.rot90(box_polygon_mask)[::-1]
-        return box_polygon_mask > 0
+        # Create the mask
+        map_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
+
+        # box_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
+        # for ann in data.annotations:
+        #     category = ann['category_name']
+        #     if category not in NameMapping:
+        #         continue
+        #     agent_type = tracked_object_types[NameMapping[ann["category_name"]]]
+        #     if agent_type in layers:
+        #         # box_value = (x, y, z, length, width, height, yaw) TODO: add intenum
+        #         x, y, heading = ann["translation"][0], ann["translation"][1] ,Quaternion(ann["rotation"]).yaw_pitch_roll[0]
+        #         box_length, box_width, box_height = ann["size"][0],ann["size"][1],ann["size"][2]
+        #         agent_box = OrientedBox(StateSE2(x, y, heading), box_length, box_width, box_height)
+        #         exterior = np.array(agent_box.geometry.exterior.coords).reshape((-1, 1, 2))
+        #         exterior = self._coords_to_pixel(exterior)
+        #         cv2.fillPoly(box_polygon_mask, [exterior], color=255)
+        # # OpenCV has origin on top-left corner
+        # box_polygon_mask = np.rot90(box_polygon_mask)[::-1]
+        # return box_polygon_mask > 0
+        # Create empty mask
+        map_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
+
+        # Extract box info
+        x, y = ann["translation"][0], ann["translation"][1]
+        length, width = ann["size"][0], ann["size"][1]
+        heading = Quaternion(ann["rotation"]).yaw_pitch_roll[0]
+
+        # Compute rectangle corners in global frame
+        dx = length / 2
+        dy = width / 2
+        corners = np.array([
+            [dx, dy],
+            [dx, -dy],
+            [-dx, -dy],
+            [-dx, dy]
+        ])
+        # Rotate by heading
+        c, s = np.cos(heading), np.sin(heading)
+        R = np.array([[c, -s], [s, c]])
+        corners_rot = corners @ R.T
+        # Translate to global position
+        corners_rot += np.array([x, y])
+
+        # Transform to ego frame
+        corners_rot -= np.array([ego.point.x, ego.point.y])
+        c, s = np.cos(-ego.heading), np.sin(-ego.heading)
+        R = np.array([[c, -s], [s, c]])
+        corners_local = corners_rot @ R.T
+
+        # Convert to pixel coordinates
+        scale = self._config.bev_pixel_height / (2 * self._config.bev_radius)
+        pts_pix = ((corners_local + self._config.bev_radius) * scale).astype(np.int32)
+        pts_pix[:, 0] = np.clip(pts_pix[:, 0], 0, self._config.bev_pixel_width - 1)
+        pts_pix[:, 1] = np.clip(pts_pix[:, 1], 0, self._config.bev_pixel_height - 1)
+
+        # Draw filled rectangle
+        cv2.fillPoly(map_polygon_mask, [pts_pix], color=255)
+
+        # Rotate/flip to match BEV convention
+        mask = np.rot90(map_polygon_mask)[::-1]
+
+        return mask > 0
 
     @staticmethod
     def _query_map_objects(

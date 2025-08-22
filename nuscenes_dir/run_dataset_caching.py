@@ -72,6 +72,42 @@ def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[
     return []
 
 
+
+import numpy as np
+import cv2
+import os
+
+def draw_semantic(bev_map_tensor, save_path="/mnt/ds/debug/bev_semantic.png"):
+    """
+    Draw BEV semantic map with distinct colors per class.
+    :param bev_map_tensor: torch.Tensor (H x W)
+    """
+    bev_map = bev_map_tensor.cpu().numpy().astype(np.int32)
+    print(np.unique(bev_map))
+    H, W = bev_map.shape
+
+    # Assign distinct colors
+    colors = {
+        0: (0, 0, 0),         # empty / background
+        1: (128, 64, 128),    # road
+        2: (0, 255, 0),       # walkways
+        3: (255, 255, 0),     # centerlines
+        4: (192, 192, 192),   # static objects
+        5: (0, 0, 255),       # vehicles
+        6: (255, 0, 0),       # pedestrians
+    }
+
+    # Create RGB image
+    bev_img = np.zeros((H, W, 3), dtype=np.uint8)
+    for label, color in colors.items():
+        bev_img[bev_map == label] = color
+
+    # Save image
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    cv2.imwrite(save_path, bev_img)
+    print(f"Saved BEV semantic map to {save_path}")
+
+
 # @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main():
     """
@@ -116,7 +152,7 @@ def main():
             sample_data = nusc.get('sample_data', sensor_token)
             image_path = Path(nusc.dataroot) / sample_data['filename']
 
-            print(image_path)
+            # print(image_path)
 
             # Load image as NumPy array in RGB
             img = cv2.imread(str(image_path))[:, :, ::-1]  # BGR → RGB
@@ -149,7 +185,7 @@ def main():
 
         save_path = Path(f"/mnt/ds/debug/{sample['token']}lidar_bev.png")
         cv2.imwrite(str(save_path), bev_img)
-        print(f"Saved LiDAR BEV to {save_path}")
+        # print(f"Saved LiDAR BEV to {save_path}")
 
         #Ego status
         pose_data = nusc_can_bus.get_messages(scene["name"],"pose")
@@ -213,19 +249,19 @@ def main():
             ego_fut_trajs_rel.append(pos_rel)
 
         ego_fut_trajs_rel = np.array(ego_fut_trajs_rel)
-        print(ego_fut_trajs_rel)
+        # print(ego_fut_trajs_rel)
 
         ##ADD HERE
         last = ego_fut_trajs_rel[len(ego_fut_trajs_rel) - 1]  # final step
         if last[1] >= 2:
             command = np.array([1, 0, 0])  # Turn Right
-            print("Turn right")
+            # print("Turn right")
         elif last[1] <= -2:
             command = np.array([0, 1, 0])  # Turn Left
-            print("Turn left")
+            # print("Turn left")
         else:
             command = np.array([0, 0, 1])  # Go Straight
-            print("Go straight")
+            # print("Go straight")
         feat_data.ego_driving_command = command
 
         features = feature_builder.compute_features(feat_data)
@@ -276,7 +312,9 @@ def main():
         map_api = NuScenesMapExplorer(map)
         target_data.map_api = map_api
 
-        target = target_builder.compute_targets(target_data)
+        target = target_builder.compute_targets(target_data,nusc,sample)
+        draw_semantic(target["bev_semantic_map"])
+
 
     # data_points = [
     #     {
