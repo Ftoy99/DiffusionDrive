@@ -51,6 +51,7 @@ class NuFeatureData:
         self.ego_driving_command = None
         self.ego_velocity = None
         self.ego_acceleration = None
+        self.token = None
 
 
 class NuTargetData:
@@ -82,17 +83,8 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         """Inherited, see superclass."""
         features = {}
         features["camera_feature"] = self._get_camera_feature(agent_input)
-        # output_dir = Path("/mnt/ds/debug")
-        # output_dir.mkdir(parents=True, exist_ok=True)
-        # tensor_img = features["camera_feature"]  # C,H,W
-        # img = tensor_img.permute(1, 2, 0).cpu().numpy()  # H,W,C
-        # img = (img * 255).astype('uint8')
-        # cv2.imwrite(str(output_dir / "stitched_camera.png"), img[:, :, ::-1])  # RGB→BGR
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
-
-        features["lidar_feature"] = self._get_lidar_feature(agent_input).cpu().numpy()
-
-
+        features["lidar_feature"] = self._get_lidar_feature(agent_input)
         features["status_feature"] = torch.concatenate(
             [
                 torch.tensor(agent_input.ego_driving_command, dtype=torch.float32),
@@ -147,48 +139,29 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
                 self._config.lidar_max_y,
                 (self._config.lidar_max_y - self._config.lidar_min_y) * int(self._config.pixels_per_meter) + 1,
             )
-            # print("X min/max:", point_cloud[:, 0].min(), point_cloud[:, 0].max())
-            # print("Y min/max:", point_cloud[:, 1].min(), point_cloud[:, 1].max())
-            # print("Z min/max:", point_cloud[:, 2].min(), point_cloud[:, 2].max())
-
             hist = np.histogramdd(point_cloud[:, :2], bins=(xbins, ybins))[0]
-            # print(hist.shape)
-            # print(hist)
-            # hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
-            #TODO MUST FIX THIS revert the previous line this was for debug
+            hist[hist > self._config.hist_max_per_pixel] = self._config.hist_max_per_pixel
             overhead_splat = hist / self._config.hist_max_per_pixel
-            # overhead_splat = (hist > 0).astype(np.uint8) * 255  # 255 = occupied, 0 = empty
-            overhead_splat = overhead_splat.T
             return overhead_splat
 
         # Remove points above the vehicle
-        # print("Before filter:", lidar_pc.shape)
         lidar_pc = lidar_pc[lidar_pc[..., 2] < self._config.max_height_lidar]
-        # print("After filter:", lidar_pc.shape)
-        #
-        # print("below Before filter:", lidar_pc.shape)
         below = lidar_pc[lidar_pc[..., 2] <= self._config.lidar_split_height]
-        # print("below After filter:", lidar_pc.shape)
-        #
-        # print("above Before filter:", lidar_pc.shape)
         above = lidar_pc[lidar_pc[..., 2] > self._config.lidar_split_height]
-        # print("above After filter:", above.shape)
-        #
-        # print("above_features max/min:", above.max(), above.min())
         above_features = splat_points(above)
-        # print("above_features max/min:", above_features.max(), above_features.min())
-        # print("above After splatting:", above.shape)
         if self._config.use_ground_plane:
             below_features = splat_points(below)
             features = np.stack([below_features, above_features], axis=-1)
         else:
             features = np.stack([above_features], axis=-1)
 
-        # full_bins = np.count_nonzero(features)
-        # print("Number of full bins:", full_bins)
+        # --- rotate & flip before transpose ---
+        features = np.rot90(features, k=-1, axes=(0, 1))  # 90° clockwise
+        features = np.flip(features, axis=1)  # horizontal flip
+        features = np.ascontiguousarray(features)  # ensure contiguous for OpenCV
 
-        bev_img = features[:, :, 0]  # single channel
-        cv2.imwrite("/mnt/ds/debug/lidar_bev_img.png", bev_img)
+        features = np.transpose(features, (2, 0, 1)).astype(np.float32)
+
         return torch.tensor(features)
 
     def _get_gaze_feature(self, image):
@@ -257,7 +230,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
 
         trajectory = data.trajectory
 
-        ego_pose = StateSE2(data.ego_pose_global_cords[0],data.ego_pose_global_cords[0],data.ego_pose_heading)
+        ego_pose = StateSE2(data.ego_pose_global_cords[0],data.ego_pose_global_cords[1],data.ego_pose_heading)
 
         agent_states, agent_labels = self._compute_agent_targets(data.annotations,data)
         bev_semantic_map = self._compute_bev_semantic_map(data,data.map,data.map_api,ego_pose,nusc,sample)
@@ -331,47 +304,47 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
 
         #Static map stuff we must draw
 
-        #Polygons
-        records = map_api.get_records_in_patch(patch,["drivable_area","road_segment","lane",])
-        for layer in records:
-            for record in records[layer]:
-                bounds = map_api.get_bounds(layer,record)
-                entity_mask = self._compute_map_polygon_mask(map, map_api,bounds, ego_pose)
-                bev_semantic_map[entity_mask] = 1
-                print("draw 1")
+        # #Polygons
+        # records = map_api.get_records_in_patch(patch,["lane"],"intersect")
+        # for layer in records:
+        #     for record in records[layer]:
+        #         bounds = map_api.get_bounds(layer,record)
+        #         entity_mask = self._compute_map_polygon_mask(map, map_api,bounds, ego_pose)
+        #         bev_semantic_map[entity_mask] = 1
+        #         # print("draw 1")
 
-        records = map_api.get_records_in_patch(patch,["walkway",])
-        for layer in records:
-            for record in records[layer]:
-                bounds = map_api.get_bounds(layer,record)
-                entity_mask = self._compute_map_polygon_mask(map, map_api,bounds, ego_pose)
-                bev_semantic_map[entity_mask] = 2
-                print("draw 2")
-
+        # records = map_api.get_records_in_patch(patch,["walkway",])
+        # for layer in records:
+        #     for record in records[layer]:
+        #         bounds = map_api.get_bounds(layer,record)
+        #         entity_mask = self._compute_map_polygon_mask(map, map_api,bounds, ego_pose)
+        #         bev_semantic_map[entity_mask] = 2
+        #         # print("draw 2")
+        #
         records = map_api.get_records_in_patch(patch,["lane"])
         for layer in records:
             for record in records[layer]:
                 bounds = map_api.get_bounds(layer,record)
                 entity_mask = self._compute_map_linestring_mask(map, map_api,bounds, ego_pose)
                 bev_semantic_map[entity_mask] = 3
-                print("draw 3")
+                # print("draw 3")
 
         #Dynamic map stuff we must draw
         for annotation in data.annotations:
-            if annotation["category_name"].startswith("movable_object.") or annotation["category_name"].startswith("static_object."):
-                entity_mask = self._compute_box_mask(annotation, ego_pose)
-                bev_semantic_map[entity_mask] = 4
-                print("draw 4")
-
-            elif annotation["category_name"].startswith("vehicle."):
+            # if annotation["category_name"].startswith("movable_object.") or annotation["category_name"].startswith("static_object."):
+            #     entity_mask = self._compute_box_mask(annotation, ego_pose)
+            #     bev_semantic_map[entity_mask] = 4
+            #     # print("draw 4")
+            #
+            if annotation["category_name"].startswith("vehicle."):
                 entity_mask = self._compute_box_mask(annotation, ego_pose)
                 bev_semantic_map[entity_mask] = 5
-                print("draw 5")
-
-            elif annotation["category_name"].startswith("human."):
-                entity_mask = self._compute_box_mask(annotation, ego_pose)
-                bev_semantic_map[entity_mask] = 6
-                print("draw 6")
+                # print("draw 5")
+            #
+            # elif annotation["category_name"].startswith("human."):
+            #     entity_mask = self._compute_box_mask(annotation, ego_pose)
+            #     bev_semantic_map[entity_mask] = 6
+            #     # print("draw 6")
 
             else:
                 print(annotation["category_name"])
