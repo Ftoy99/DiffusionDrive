@@ -321,7 +321,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         #         bev_semantic_map[entity_mask] = 2
         #         # print("draw 2")
         #
-        records = map_api.get_records_in_patch(patch,["lane"])
+        records = map_api.get_records_in_patch(patch,["lane","lane_connector"])
         for layer in records:
             for record in records[layer]:
                 bounds = map_api.get_bounds(layer,record)
@@ -397,18 +397,6 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         # Rotate/flip to match BEV convention
         mask = np.rot90(map_polygon_mask)[::-1]
         return mask > 0
-        # # bounds_rel = Null
-        # # # map_api.patch
-        # # #
-        # # # for layer in layers:
-        # # #     for map_object in map_object_dict[layer]:
-        # #         polygon: Polygon = self._geometry_local_coords(map_object.polygon, ego_pose)
-        # #         exterior = np.array(polygon.exterior.coords).reshape((-1, 1, 2))
-        # #         exterior = self._coords_to_pixel(exterior)
-        # #         cv2.fillPoly(map_polygon_mask, [exterior], color=255)
-        # # # OpenCV has origin on top-left corner
-        # map_polygon_mask = np.rot90(map_polygon_mask)[::-1]
-        # return map_polygon_mask > 0
 
     def _compute_map_linestring_mask(
             self,map:NuScenesMap, map_api: NuScenesMapExplorer,bounds, ego_pose: StateSE2
@@ -463,27 +451,6 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         :param layers: bounding box labels to include
         :return: binary mask as numpy array
         """
-        # Create the mask
-        map_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
-
-        # box_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
-        # for ann in data.annotations:
-        #     category = ann['category_name']
-        #     if category not in NameMapping:
-        #         continue
-        #     agent_type = tracked_object_types[NameMapping[ann["category_name"]]]
-        #     if agent_type in layers:
-        #         # box_value = (x, y, z, length, width, height, yaw) TODO: add intenum
-        #         x, y, heading = ann["translation"][0], ann["translation"][1] ,Quaternion(ann["rotation"]).yaw_pitch_roll[0]
-        #         box_length, box_width, box_height = ann["size"][0],ann["size"][1],ann["size"][2]
-        #         agent_box = OrientedBox(StateSE2(x, y, heading), box_length, box_width, box_height)
-        #         exterior = np.array(agent_box.geometry.exterior.coords).reshape((-1, 1, 2))
-        #         exterior = self._coords_to_pixel(exterior)
-        #         cv2.fillPoly(box_polygon_mask, [exterior], color=255)
-        # # OpenCV has origin on top-left corner
-        # box_polygon_mask = np.rot90(box_polygon_mask)[::-1]
-        # return box_polygon_mask > 0
-        # Create empty mask
         map_polygon_mask = np.zeros(self._config.bev_semantic_frame[::-1], dtype=np.uint8)
 
         # Extract box info
