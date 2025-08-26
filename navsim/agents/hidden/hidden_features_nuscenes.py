@@ -11,15 +11,12 @@ from torchvision import transforms
 from torchvision.transforms import ToPILImage, ToTensor
 
 from shapely import affinity
-from shapely.geometry import Polygon, LineString
 
 from nuplan.common.maps.abstract_map import AbstractMap, SemanticMapLayer, MapObject
-from nuplan.common.actor_state.oriented_box import OrientedBox
 from nuplan.common.actor_state.state_representation import StateSE2
-from nuplan.common.actor_state.tracked_objects_types import TrackedObjectType
+
 from nuscenes.map_expansion.map_api import NuScenesMap, NuScenesMapExplorer
 from navsim.agents.hidden.hidden_config import HiddenConfig
-from navsim.planning.scenario_builder.navsim_scenario_utils import tracked_object_types
 from navsim.planning.training.abstract_feature_target_builder import AbstractFeatureBuilder, AbstractTargetBuilder
 
 from navsim.agents.hidden.depth_gaze import depth_inf
@@ -88,8 +85,8 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         features["status_feature"] = torch.concatenate(
             [
                 torch.tensor(agent_input.ego_driving_command, dtype=torch.float32),
-                torch.tensor([agent_input.ego_velocity], dtype=torch.float32),
-                torch.tensor([agent_input.ego_acceleration], dtype=torch.float32),
+                torch.tensor(agent_input.ego_velocity, dtype=torch.float32),
+                torch.tensor(agent_input.ego_acceleration, dtype=torch.float32),
             ],
         )
 
@@ -223,15 +220,15 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
 
     def get_unique_name(self) -> str:
         """Inherited, see superclass."""
-        return "transfuser_target"
+        return "transfuser_tafrget"
 
     def compute_targets(self, data: NuTargetData, nusc, sample) -> Dict[str, torch.Tensor]:
         """Inherited, see superclass."""
 
-        trajectory = data.trajectory
+        trajectory = np.array([[tr.x, tr.y, tr.heading] for tr in data.trajectory], dtype=np.float32)
+        trajectory = torch.tensor(trajectory, dtype=torch.float32)
 
         ego_pose = StateSE2(data.ego_pose_global_cords[0],data.ego_pose_global_cords[1],data.ego_pose_heading)
-
         agent_states, agent_labels = self._compute_agent_targets(data.annotations,data)
         bev_semantic_map = self._compute_bev_semantic_map(data,data.map,data.map_api,ego_pose,nusc,sample)
 
@@ -419,18 +416,18 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
 
             cv2.fillPoly(bev_canvas, [rot_box], color=color)
 
-        # Draw ego box
-        ego_length, ego_width = 4, 4
-        box = np.array([
-            [-ego_width / 2, 0],
-            [ego_width / 2, 0],
-            [ego_width / 2, ego_length],
-            [-ego_width / 2, ego_length]
-        ])
-
-        box = box / 1 + center
-        box = box.astype(np.int32)
-        cv2.fillPoly(bev_canvas, [box], color=5)
+        # # Draw ego box
+        # ego_length, ego_width = 4, 4
+        # box = np.array([
+        #     [-ego_width / 2, 0],
+        #     [ego_width / 2, 0],
+        #     [ego_width / 2, ego_length],
+        #     [-ego_width / 2, ego_length]
+        # ])
+        #
+        # box = box / 1 + center
+        # box = box.astype(np.int32)
+        # cv2.fillPoly(bev_canvas, [box], color=5)
 
         # Rotate the canvas
         bev_canvas = np.rot90(bev_canvas, k=1).copy()

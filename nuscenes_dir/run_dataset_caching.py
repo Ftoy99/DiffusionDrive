@@ -24,12 +24,18 @@ logger = logging.getLogger(__name__)
 
 CONFIG_PATH = "config/training"
 CONFIG_NAME = "default_training"
-# DATA_PATH = "/mnt/ds/nuscenes"
-# VERSION = "v1.0-trainval"
-DATA_PATH = "/mnt/ds/nuscenes_mini"
-CACHE_PATH = "/mnt/ds/nuscenes_cached_mini"
 
-VERSION = "v1.0-mini"
+# Big dataset
+DATA_PATH = "/mnt/ds/nuscenes"
+VERSION = "v1.0-trainval"
+CACHE_PATH = "/mnt/ds/nuscenes_cached"
+
+#Mini dataset
+# DATA_PATH = "/mnt/ds/nuscenes_mini"
+# CACHE_PATH = "/mnt/ds/nuscenes_cached_mini"
+# VERSION = "v1.0-mini"
+
+# Cameras to cache
 front_cameras = ["CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_FRONT_LEFT"]
 
 def draw_bev(features,ego_fut_trajs_rel,path="/mnt/ds/debug/bev.png"):
@@ -106,6 +112,20 @@ def main():
             while sample_token != "":
                 sample = nusc.get("sample", sample_token)
 
+                # We want samples that have at least 4 future samples
+                count = 0
+                temp_sample = sample
+                while temp_sample["next"] != '':
+                    temp_sample = nusc.get("sample", temp_sample["next"])
+                    count +=1
+                    if count > 8:
+                        break
+                if count < 8:
+                    sample_token = sample["next"]
+                    pbar.update(1)
+                    continue
+
+
                 feat_data = NuFeatureData()
                 target_data = NuTargetData()
 
@@ -140,7 +160,7 @@ def main():
 def target_data_preperation(ego_fut_heading, ego_fut_trajs_rel, nusc, sample, scene, target_builder,
                             target_data):
     # Future trajectories
-    num_poses = min(5, len(ego_fut_heading))
+    num_poses = 9
     target_data.trajectory = [
         StateSE2(ego_fut_trajs_rel[i][0], ego_fut_trajs_rel[i][1], ego_fut_heading[i])
         for i in range(1, num_poses)
@@ -163,7 +183,8 @@ def target_data_preperation(ego_fut_heading, ego_fut_trajs_rel, nusc, sample, sc
     map_api = NuScenesMapExplorer(map)
     target_data.map_api = map_api
     target = target_builder.compute_targets(target_data, nusc, sample)
-    draw_semantic(target["bev_semantic_map"], f"/mnt/ds/debug/{sample['token']}_bev_semantic.png")
+    #Debug
+    # draw_semantic(target["bev_semantic_map"], f"/mnt/ds/debug/{sample['token']}_bev_semantic.png")
     return target
 
 
@@ -189,18 +210,19 @@ def feature_data_preperation(feat_data, feature_builder, nusc, nusc_can_bus, sam
     points = pc.points[:3, :].T  # shape (N, 3) -> x,y,z
     feat_data.lidar = points  # store in your feature data
     # Lidar debug image original
-    lidar_points = feat_data.lidar  # (N, 3)
-    bev_size = (512, 512)  # output image size
-    x_min, x_max = -50, 50
-    y_min, y_max = -50, 50
-    x_img = ((lidar_points[:, 0] - x_min) / (x_max - x_min) * (bev_size[0] - 1)).astype(np.int32)
-    y_img = ((lidar_points[:, 1] - y_min) / (y_max - y_min) * (bev_size[1] - 1)).astype(np.int32)
-    x_img = np.clip(x_img, 0, bev_size[0] - 1)
-    y_img = np.clip(y_img, 0, bev_size[1] - 1)
-    bev_img = np.zeros(bev_size, dtype=np.uint8)
-    bev_img[y_img, x_img] = 255
-    save_path = Path(f"/mnt/ds/debug/{sample['token']}_lidar_bev.png")
-    cv2.imwrite(str(save_path), bev_img)
+    # lidar_points = feat_data.lidar  # (N, 3)
+    # bev_size = (512, 512)  # output image size
+    # x_min, x_max = -50, 50
+    # y_min, y_max = -50, 50
+    # x_img = ((lidar_points[:, 0] - x_min) / (x_max - x_min) * (bev_size[0] - 1)).astype(np.int32)
+    # y_img = ((lidar_points[:, 1] - y_min) / (y_max - y_min) * (bev_size[1] - 1)).astype(np.int32)
+    # x_img = np.clip(x_img, 0, bev_size[0] - 1)
+    # y_img = np.clip(y_img, 0, bev_size[1] - 1)
+    # bev_img = np.zeros(bev_size, dtype=np.uint8)
+    # bev_img[y_img, x_img] = 255
+    #Debug
+    # save_path = Path(f"/mnt/ds/debug/{sample['token']}_lidar_bev.png")
+    # cv2.imwrite(str(save_path), bev_img)
     # print(f"Saved LiDAR BEV to {save_path}")
     # Ego status
     pose_data = nusc_can_bus.get_messages(scene["name"], "pose")
@@ -219,15 +241,15 @@ def feature_data_preperation(feat_data, feature_builder, nusc, nusc_can_bus, sam
         msg = before if abs(before['utime'] - sample_data_timestamp) < abs(
             after['utime'] - sample_data_timestamp) else after
     # get vel
-    feat_data.ego_velocity = np.linalg.norm(np.array(msg['vel']))
-    feat_data.ego_acceleration = np.linalg.norm(np.array(msg['accel']))
+    feat_data.ego_velocity = np.array(msg['vel'][:2], dtype=np.float32)
+    feat_data.ego_acceleration = np.array(msg['accel'][:2], dtype=np.float32)
     # Driving command meta-action etc.
     # We are at sample T
     # We want the current position and then positions for x T+{1....x}
     # After we have the coordinates we want to translate them to our relative lidar So we have values close to 0.0 of current position
     # Based on the future waypoint poses/locations offsets we can determine the meta actions we must take.
     # if we are at a sample we dont have enough future trajectories keep the last meta-action
-    num_of_samples_to_look = 7
+    num_of_samples_to_look = 8
     sample_cur = sample  # starting sample at time T
     ego_fut_trajs = {}
     ego_fut_heading = {}
@@ -258,18 +280,19 @@ def feature_data_preperation(feat_data, feature_builder, nusc, nusc_can_bus, sam
     ##ADD HERE
     last = ego_fut_trajs_rel[len(ego_fut_trajs_rel) - 1]  # final step
     if last[1] >= 2:
-        command = np.array([1, 0, 0])  # Turn Right
+        command = np.array([1, 0, 0,0])  # Turn Right
         # print("Turn right")
     elif last[1] <= -2:
-        command = np.array([0, 1, 0])  # Turn Left
+        command = np.array([0, 1, 0,0])  # Turn Left
         # print("Turn left")
     else:
-        command = np.array([0, 0, 1])  # Go Straight
+        command = np.array([0, 0, 1,0])  # Go Straight
         # print("Go straight")
     feat_data.ego_driving_command = command
     feat_data.token = sample_cur["token"]
     features = feature_builder.compute_features(feat_data)
-    draw_bev(features["lidar_feature"],ego_fut_trajs_rel,f"/mnt/ds/debug/{sample_cur['token']}_lidar_bev_img_with_traj_relative.png")
+    #Debug
+    # draw_bev(features["lidar_feature"],ego_fut_trajs_rel,f"/mnt/ds/debug/{sample_cur['token']}_lidar_bev_img_with_traj_relative.png")
     return ego_fut_heading, ego_fut_trajs_rel, features
 
 
