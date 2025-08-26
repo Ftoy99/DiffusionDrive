@@ -1,4 +1,3 @@
-import math
 import os
 
 import cv2
@@ -6,9 +5,7 @@ import numpy as np
 import pyquaternion
 from nuscenes import NuScenes
 from nuscenes.can_bus.can_bus_api import NuScenesCanBus
-from nuscenes.map_expansion import arcline_path_utils
-from nuscenes.map_expansion.map_api import NuScenesMap, NuScenesMapExplorer
-from pyquaternion import Quaternion
+from nuscenes.map_expansion.map_api import NuScenesMap
 from tqdm import tqdm
 import torch
 
@@ -61,7 +58,7 @@ def yaw_from_quaternion(q):
     quat = pyquaternion.Quaternion(q)
     return quat.yaw_pitch_roll[0]
 
-def create_bev_semantic(sample, nusc: NuScenes, nusc_can_bus: NuScenesCanBus):
+def create_bev_semantic(sample, nusc: NuScenes):
     cfg = HiddenConfig()
     zoom = 4.0  # 2× zoom, increase to zoom in more
     # Make a large square canvas to avoid clipping after rotation
@@ -115,7 +112,7 @@ def create_bev_semantic(sample, nusc: NuScenes, nusc_can_bus: NuScenesCanBus):
         cv2.fillPoly(bev_canvas, [coords], color=2)
 
     for lane in list(nusc_map.lane) + list(nusc_map.lane_connector):
-        poses = nusc_map.discretize_lanes([lane["token"]], 4.0)  # returns dict of lists
+        poses = nusc_map.discretize_lanes([lane["token"]], 3.0)  # returns dict of lists
         for key in poses.keys():
             coords = np.array([[pose[0], pose[1]] for pose in poses[key]])  # stack all points
 
@@ -138,41 +135,43 @@ def create_bev_semantic(sample, nusc: NuScenes, nusc_can_bus: NuScenesCanBus):
         yaw_obj = yaw_from_quaternion(ann['rotation'])
         length, width, height = ann['size']
 
-        # transform to ego frame
-        dx = x - ego_x
-        dy = y - ego_y
-        rotated_x = cos_y * dx - sin_y * dy
-        rotated_y = sin_y * dx + cos_y * dy
-        rotated_y = -rotated_y
-
-        # create box corners in object frame
+        # box corners in object local frame (centered at origin)
         box = np.array([
-            [-width / 2, 0],
-            [width / 2, 0],
-            [width / 2, length],
-            [-width / 2, length]
+            [-width / 2, -length / 2],
+            [width / 2, -length / 2],
+            [width / 2, length / 2],
+            [-width / 2, length / 2]
         ])
 
-        # rotate box by object yaw relative to ego
-        c, s = np.cos(yaw_obj - yaw), np.sin(yaw_obj - yaw)
+        # rotate to global frame with object yaw
+        c, s = np.cos(yaw_obj), np.sin(yaw_obj)
         rot_box = np.zeros_like(box)
         rot_box[:, 0] = c * box[:, 0] - s * box[:, 1]
         rot_box[:, 1] = s * box[:, 0] + c * box[:, 1]
 
-        # apply zoom and center
-        rot_box[:, 0] = rot_box[:, 0] * zoom + center[0] + rotated_x * zoom
-        rot_box[:, 1] = rot_box[:, 1] * zoom + center[1] + rotated_y * zoom
+        # translate to object center (global coords)
+        rot_box[:, 0] += x
+        rot_box[:, 1] += y
+
+        # --- now same as walkway ---
+        dx = rot_box[:, 0] - ego_x
+        dy = rot_box[:, 1] - ego_y
+        rotated_x = cos_y * dx - sin_y * dy
+        rotated_y = sin_y * dx + cos_y * dy
+        rotated_y = -rotated_y
+        rot_box[:, 0] = rotated_x * zoom + center[0]
+        rot_box[:, 1] = rotated_y * zoom + center[1]
         rot_box = rot_box.astype(np.int32)
 
-        # choose color based on category
+        # color logic same as before
         if ann['category_name'].startswith("vehicle"):
             color = 5
         elif ann['category_name'].startswith("human"):
             color = 6
-        elif ann['category_name'] in ["movable_object.trafficcone","movable_object.barrier","movable_object.pushable_pullable"]:
+        elif ann['category_name'] in ["movable_object.trafficcone", "movable_object.barrier",
+                                      "movable_object.pushable_pullable"]:
             color = 4
         else:
-            print(ann['category_name'])
             continue
 
         cv2.fillPoly(bev_canvas, [rot_box], color=color)
@@ -215,7 +214,7 @@ if __name__ == '__main__':
             while sample_token != "":
                 sample = nusc.get("sample", sample_token)
 
-                bev_sematic = create_bev_semantic(sample,nusc,nusc_can_bus)
+                bev_sematic = create_bev_semantic(sample,nusc)
                 draw_semantic(bev_sematic)
                 sample_token = sample["next"]
                 pbar.update(1)

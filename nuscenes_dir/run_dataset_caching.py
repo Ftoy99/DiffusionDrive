@@ -1,4 +1,6 @@
 import bisect
+import gzip
+import pickle
 from pathlib import Path
 import logging
 import os
@@ -25,6 +27,8 @@ CONFIG_NAME = "default_training"
 # DATA_PATH = "/mnt/ds/nuscenes"
 # VERSION = "v1.0-trainval"
 DATA_PATH = "/mnt/ds/nuscenes_mini"
+CACHE_PATH = "/mnt/ds/nuscenes_cached_mini"
+
 VERSION = "v1.0-mini"
 front_cameras = ["CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_FRONT_LEFT"]
 
@@ -89,19 +93,21 @@ def main():
     feature_builder = HiddenFeatureBuilder(cfg)
     target_builder = HiddenTargetBuilder(cfg)
 
-    # TODO must clear this for each sample
-    feat_data = NuFeatureData()
-    target_data = NuTargetData()
-
-
-
     total_samples = sum([scene["nbr_samples"] for scene in nusc.scene])
     with tqdm(total=total_samples, desc="Processing NuScenes", unit="sample") as pbar:
         # For each scene
         for scene in nusc.scene:
+
+            split = "val"
+            if scene["name"] in train:
+                split = "train"
+
             sample_token = scene["first_sample_token"]
             while sample_token != "":
                 sample = nusc.get("sample", sample_token)
+
+                feat_data = NuFeatureData()
+                target_data = NuTargetData()
 
                 #############################
                 ## FEATURE DATA GENERATION ##
@@ -118,11 +124,15 @@ def main():
                 targets = target_data_preperation(ego_fut_heading, ego_fut_trajs_rel, nusc, sample, scene,
                                         target_builder, target_data)
 
-                features = features
-                targets = targets
+                out_dir = os.path.join(CACHE_PATH, split,sample["token"])
+                os.makedirs(out_dir, exist_ok=True)
+                with gzip.open(os.path.join(out_dir,"features.gz"), "wb", compresslevel=1) as f:
+                    pickle.dump(features, f)
+                with gzip.open(os.path.join(out_dir,"target.gz"), "wb", compresslevel=1) as f:
+                    pickle.dump(targets, f)
+
 
                 # Move to next sample
-                exit()
                 sample_token = sample["next"]
                 pbar.update(1)
 
