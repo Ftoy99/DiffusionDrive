@@ -104,6 +104,9 @@ def main():
         # For each scene
         for scene in nusc.scene:
 
+            if scene in [nusc_can_bus.can_blacklist]:
+                continue
+
             split = "val"
             if scene["name"] in train:
                 split = "train"
