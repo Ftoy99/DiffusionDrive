@@ -104,7 +104,7 @@ def main():
         # For each scene
         for scene in nusc.scene:
 
-            if scene in nusc_can_bus.can_blacklist:
+            if int(scene["name"].split("-")[-1]) in nusc_can_bus.can_blacklist:
                 continue
 
             split = "val"
