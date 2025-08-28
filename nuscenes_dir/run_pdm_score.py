@@ -113,7 +113,7 @@ def main(cfg: DictConfig) -> None:
     # Extract scenes based on scene-loader to know which tokens to distribute across workers
     # TODO: infer the tokens per log from metadata, to not have to load metric cache and scenes here
     scene_loader = SceneLoader(
-        sensor_blobs_path=None,
+        sensor_blobs_path = None,
         data_path=Path(cfg.navsim_log_path),
         scene_filter=instantiate(cfg.train_test_split.scene_filter),
         sensor_config=SensorConfig.build_no_sensors(),

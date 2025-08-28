@@ -2,10 +2,9 @@ import logging
 import hydra
 from omegaconf import DictConfig
 
-from nuplan.planning.script.builders.logging_builder import build_logger
 
-from navsim.planning.metric_caching.caching import cache_data
-from navsim.planning.script.builders.worker_pool_builder import build_worker
+from nuscenes_dir.metric_caching.caching import cache_data
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +18,7 @@ def main(cfg: DictConfig) -> None:
     Main entrypoint for metric caching.
     :param cfg: omegaconf dictionary
     """
-    # Configure logger
-    build_logger(cfg)
 
-    # Build worker
-    worker = build_worker(cfg)
 
     # Precompute and cache all features
     logger.info("Starting Metric Caching...")
