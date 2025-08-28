@@ -15,14 +15,6 @@ import torch.utils.checkpoint as cp
 
 
 from einops import rearrange
-try:
-    from flash_attn.flash_attn_interface import flash_attn_unpadded_kvpacked_func
-    print('Use flash_attn_unpadded_kvpacked_func')
-except:
-    from flash_attn.flash_attn_interface import  flash_attn_varlen_kvpacked_func as flash_attn_unpadded_kvpacked_func
-    print('Use flash_attn_varlen_kvpacked_func')
-from flash_attn.bert_padding import unpad_input, pad_input, index_first_axis
-
 
 def _in_projection_packed(q, k, v, w, b = None):
     w_q, w_k, w_v = w.chunk(3)
