@@ -8,7 +8,6 @@ import uuid
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 
-from nuplan.planning.utils.multithreading.worker_pool import WorkerPool
 from nuplan.planning.utils.multithreading.worker_utils import worker_map
 from nuplan.planning.training.experiments.cache_metadata_entry import (
     CacheMetadataEntry,

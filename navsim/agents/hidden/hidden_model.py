@@ -121,8 +121,8 @@ class HiddenModel(nn.Module):
         str, torch.Tensor]:
         drop_prob = 0.15
         gaze_flag = torch.rand(()) < drop_prob
-        if gaze_flag:
-            print("Training without gaze")
+        # if gaze_flag:
+        #     print("Training without gaze")
         # True no gaze
         # False gaze
         # gaze_flag = True

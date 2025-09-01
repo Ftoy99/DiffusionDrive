@@ -1,6 +1,5 @@
 import logging
 
-import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
@@ -8,13 +7,13 @@ from navsim.agents.abstract_agent import AbstractAgent
 from navsim.agents.hidden.hidden_agent import HiddenAgent
 from navsim.agents.hidden.hidden_config import HiddenConfig
 from navsim.planning.training.agent_lightning_module import AgentLightningModule
-from nuscenes_dir.nuscenes_dataset_cached import SimpleCacheDataset
+from nuscenes_dir.nuscenes_dataset_cached import SimpleCacheDataset, dict_collate
 
 logger = logging.getLogger(__name__)
 
-CACHE_PATH = "/mnt/ds/nuscenes_cached_mini"
+CACHE_PATH = "/mnt/ds/nuscenes_cached"
 OUTPUT_DIR = "/mnt/ds/debug/log"
-
+CHECKPOINT_PATH = "/mnt/ds/debug/log/lightning_logs/version_28/checkpoints/e9.ckpt"
 
 def main() -> None:
     """
@@ -29,7 +28,7 @@ def main() -> None:
 
     logger.info("Building Agent")
     cfg = HiddenConfig()
-    agent: AbstractAgent = HiddenAgent(cfg, lr=1e-4, checkpoint_path=None)
+    agent: AbstractAgent = HiddenAgent(cfg, lr=1e-4, checkpoint_path=CHECKPOINT_PATH)
 
     logger.info("Building Lightning Module")
     lightning_module = AgentLightningModule(
@@ -56,8 +55,8 @@ def main() -> None:
     logger.info("Num validation samples: %d", len(val_data))
 
     logger.info("Building Trainer")
-    trainer = pl.Trainer(max_epochs=10, check_val_every_n_epoch=1, val_check_interval=1, limit_val_batches=1,
-                         limit_train_batches=1, accelerator="gpu", strategy="ddp_find_unused_parameters_true",
+    trainer = pl.Trainer(max_epochs=20, check_val_every_n_epoch=1, val_check_interval=1.0, limit_val_batches=1.0,
+                         limit_train_batches=1.0, accelerator="gpu", strategy="ddp_find_unused_parameters_true",
                          precision="16-mixed", num_nodes=1, num_sanity_val_steps=0, fast_dev_run=False,
                          accumulate_grad_batches=1, gradient_clip_val=1.0, gradient_clip_algorithm="norm",
                          default_root_dir=OUTPUT_DIR, callbacks=agent.get_training_callbacks())

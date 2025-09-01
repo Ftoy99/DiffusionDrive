@@ -7,30 +7,27 @@ from torch.utils.data import Dataset
 
 
 class SimpleCacheDataset(Dataset):
-    """Dataset for multiple features.gz / target.gz per split folder."""
-
     def __init__(self, cache_path: str, split: str):
         split_path = os.path.join(cache_path, split)
-        self.features = []
-        self.targets = []
+        self.samples = []
         for folder in os.listdir(split_path):
             folder_path = os.path.join(split_path, folder)
             if not os.path.isdir(folder_path):
                 continue
-
-            with gzip.open(os.path.join(folder_path, "features.gz"), "rb") as f:
-                self.features.append(pickle.load(f))
-            with gzip.open(os.path.join(folder_path, "target.gz"), "rb") as f:
-                self.targets.append(pickle.load(f))
-
-        assert len(self.features) == len(self.targets), "Features/targets mismatch"
+            self.samples.append({
+                "features": os.path.join(folder_path, "features.gz"),
+                "target": os.path.join(folder_path, "target.gz"),
+            })
 
     def __len__(self):
-        return len(self.features)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        x = self.features[idx]
-        y = self.targets[idx]
+        sample = self.samples[idx]
+        with gzip.open(sample["features"], "rb") as f:
+            x = pickle.load(f)
+        with gzip.open(sample["target"], "rb") as f:
+            y = pickle.load(f)
         return x, y
 
 
