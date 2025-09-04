@@ -5,6 +5,7 @@ import uuid
 import os
 
 import hydra
+import matplotlib
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 import pytorch_lightning as pl
@@ -22,6 +23,9 @@ logger = logging.getLogger(__name__)
 CONFIG_PATH = "config/training"
 CONFIG_NAME = "default_training"
 
+# DEBUG TODO REMOVE
+import matplotlib
+matplotlib.use("Agg")
 
 def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[Optional[Any]]:
     """
@@ -46,6 +50,8 @@ def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[
         scene_filter=scene_filter,
         sensor_config=agent.get_sensor_config(),
     )
+
+
     logger.info(f"Extracted {len(scene_loader.tokens)} scenarios for thread_id={thread_id}, node_id={node_id}.")
 
     dataset = Dataset(
@@ -60,6 +66,7 @@ def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[
 
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(cfg: DictConfig) -> None:
+
     """
     Main entrypoint for dataset caching script.
     :param cfg: omegaconf dictionary
@@ -67,8 +74,8 @@ def main(cfg: DictConfig) -> None:
     logger.info("Global Seed set to 0")
     pl.seed_everything(0, workers=True)
 
-    logger.info("Building Worker")
-    worker: WorkerPool = instantiate(cfg.worker)
+    # logger.info("Building Worker")
+    # worker: WorkerPool = instantiate(cfg.worker)
 
     logger.info("Building SceneLoader")
     scene_filter: SceneFilter = instantiate(cfg.train_test_split.scene_filter)
@@ -91,7 +98,9 @@ def main(cfg: DictConfig) -> None:
         for log_file, tokens_list in scene_loader.get_tokens_list_per_log().items()
     ]
 
-    _ = worker_map(worker, cache_features, data_points)
+    logger.info("Running in single-threaded mode (no WorkerPool)")
+    for dp in data_points:
+        cache_features([dp])
     logger.info(f"Finished caching {len(scene_loader)} scenarios for training/validation dataset")
 
 
