@@ -51,6 +51,10 @@ def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[
         sensor_config=agent.get_sensor_config(),
     )
 
+    # Debug check for consecutive timestamps
+    for token in scene_loader.tokens:
+        scene = scene_loader.get_scene_from_token(token)
+        print(f"Token: {token}, start_time: {scene.frames[0].timestamp}, end_time: {scene.frames[-1].timestamp}")
 
     logger.info(f"Extracted {len(scene_loader.tokens)} scenarios for thread_id={thread_id}, node_id={node_id}.")
 
