@@ -11,7 +11,6 @@ import numpy.typing as npt
 from PIL import Image
 from pyquaternion import Quaternion
 
-
 from nuplan.planning.simulation.trajectory.trajectory_sampling import TrajectorySampling
 from nuplan.common.actor_state.state_representation import StateSE2
 from nuplan.common.maps.abstract_map import AbstractMap
@@ -55,10 +54,10 @@ class Cameras:
 
     @classmethod
     def from_camera_dict(
-        cls,
-        sensor_blobs_path: Path,
-        camera_dict: Dict[str, Any],
-        sensor_names: List[str],
+            cls,
+            sensor_blobs_path: Path,
+            camera_dict: Dict[str, Any],
+            sensor_names: List[str],
     ) -> Cameras:
         """
         Load camera dataclass from dictionary.
@@ -149,11 +148,11 @@ class AgentInput:
 
     @classmethod
     def from_scene_dict_list(
-        cls,
-        scene_dict_list: List[Dict],
-        sensor_blobs_path: Path,
-        num_history_frames: int,
-        sensor_config: SensorConfig,
+            cls,
+            scene_dict_list: List[Dict],
+            sensor_blobs_path: Path,
+            num_history_frames: int,
+            sensor_config: SensorConfig,
     ) -> AgentInput:
         """
         Load agent input from scene dictionary.
@@ -184,7 +183,6 @@ class AgentInput:
         lidars: List[Lidar] = []
 
         for frame_idx in range(num_history_frames):
-
             ego_dynamic_state = scene_dict_list[frame_idx]["ego_dynamic_state"]
             ego_status = EgoStatus(
                 ego_pose=np.array(local_ego_poses[frame_idx], dtype=np.float32),
@@ -229,7 +227,7 @@ class Annotations:
             attribute_name: len(attribute) for attribute_name, attribute in vars(self).items()
         }
         assert (
-            len(set(annotation_lengths.values())) == 1
+                len(set(annotation_lengths.values())) == 1
         ), f"Annotations expects all attributes to have equal length, but got {annotation_lengths}"
 
 
@@ -243,7 +241,7 @@ class Trajectory:
     def __post_init__(self):
         assert self.poses.ndim == 2, "Trajectory poses should have two dimensions for samples and poses."
         assert (
-            self.poses.shape[0] == self.trajectory_sampling.num_poses
+                self.poses.shape[0] == self.trajectory_sampling.num_poses
         ), "Trajectory poses and sampling have unequal number of poses."
         assert self.poses.shape[1] == 3, "Trajectory requires (x, y, heading) at last dim."
 
@@ -349,6 +347,9 @@ class Scene:
         cameras: List[Cameras] = []
         lidars: List[Lidar] = []
 
+        ## TODO
+        ## self.frames[frame_idx].annotations add and keep track then compute trajectory for pedestrian and vechicles
+
         for frame_idx in range(self.scene_metadata.num_history_frames):
             frame_ego_status = self.frames[frame_idx].ego_status
 
@@ -402,12 +403,12 @@ class Scene:
 
     @classmethod
     def from_scene_dict_list(
-        cls,
-        scene_dict_list: List[Dict],
-        sensor_blobs_path: Path,
-        num_history_frames: int,
-        num_future_frames: int,
-        sensor_config: SensorConfig,
+            cls,
+            scene_dict_list: List[Dict],
+            sensor_blobs_path: Path,
+            num_history_frames: int,
+            num_future_frames: int,
+            sensor_config: SensorConfig,
     ) -> Scene:
         """
         Load scene dataclass from scene dictionary list (for log loading).
@@ -475,10 +476,10 @@ class SceneFilter:
     max_scenes: Optional[int] = None
     log_names: Optional[List[str]] = None
     tokens: Optional[List[str]] = None
+
     # TODO: expand filter options
 
     def __post_init__(self):
-
         if self.frame_interval is None:
             self.frame_interval = self.num_frames
 
