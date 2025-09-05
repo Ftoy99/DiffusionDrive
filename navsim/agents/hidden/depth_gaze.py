@@ -11,7 +11,6 @@ pipe = pipeline(
     task="depth-estimation",
     model="LiheYoung/depth-anything-small-hf",
     image_processor=processor,
-    device=0
 )
 
 def depth_inf(image):
