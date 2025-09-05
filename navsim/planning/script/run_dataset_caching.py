@@ -51,11 +51,6 @@ def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[
         sensor_config=agent.get_sensor_config(),
     )
 
-    # Debug check for consecutive timestamps
-    for token in scene_loader.tokens:
-        scene = scene_loader.get_scene_from_token(token)
-        print(f"Token: {token}, start_time: {scene.frames[0].timestamp}, end_time: {scene.frames[-1].timestamp}")
-
     logger.info(f"Extracted {len(scene_loader.tokens)} scenarios for thread_id={thread_id}, node_id={node_id}.")
 
     dataset = Dataset(
@@ -78,8 +73,8 @@ def main(cfg: DictConfig) -> None:
     logger.info("Global Seed set to 0")
     pl.seed_everything(0, workers=True)
 
-    # logger.info("Building Worker")
-    # worker: WorkerPool = instantiate(cfg.worker)
+    logger.info("Building Worker")
+    worker: WorkerPool = instantiate(cfg.worker)
 
     logger.info("Building SceneLoader")
     scene_filter: SceneFilter = instantiate(cfg.train_test_split.scene_filter)
@@ -102,9 +97,10 @@ def main(cfg: DictConfig) -> None:
         for log_file, tokens_list in scene_loader.get_tokens_list_per_log().items()
     ]
 
-    logger.info("Running in single-threaded mode (no WorkerPool)")
-    for dp in data_points:
-        cache_features([dp])
+    # logger.info("Running in single-threaded mode (no WorkerPool)")
+    # for dp in data_points:
+    #     cache_features([dp])
+    _ = worker_map(worker, cache_features, data_points)
     logger.info(f"Finished caching {len(scene_loader)} scenarios for training/validation dataset")
 
 

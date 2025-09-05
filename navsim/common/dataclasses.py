@@ -145,6 +145,7 @@ class AgentInput:
     ego_statuses: List[EgoStatus]
     cameras: List[Cameras]
     lidars: List[Lidar]
+    trajectories: Dict = None
 
     @classmethod
     def from_scene_dict_list(
@@ -364,7 +365,25 @@ class Scene:
             cameras.append(self.frames[frame_idx].cameras)
             lidars.append(self.frames[frame_idx].lidar)
 
-        return AgentInput(ego_statuses, cameras, lidars)
+        # For trajectories of nearby objects
+        trajectories = {}  # tracked obj : [trajectories]
+        origin = StateSE2(*local_ego_poses[-1])
+        for frame_idx in range(self.scene_metadata.num_history_frames):
+            ann = self.frames[frame_idx].annotations
+
+            for box, inst, name in zip(ann.boxes, ann.track_tokens, ann.names):
+                if inst not in trajectories:
+                    trajectories[inst] = {"category": name, "trajectory": []}
+
+                # create SE2 array for object [x, y, yaw]
+                obj_se2 = np.array([[box[0], box[1], box[6]]], dtype=np.float64)
+
+                # convert to ego-centric coordinates
+                rel_se2 = convert_absolute_to_relative_se2_array(origin, obj_se2)
+
+                trajectories[inst]["trajectory"].append(rel_se2[0])  # [x_rel, y_rel, yaw_rel]
+
+        return AgentInput(ego_statuses, cameras, lidars, trajectories)
 
     @classmethod
     def _build_map_api(cls, map_name: str) -> AbstractMap:

@@ -46,6 +46,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         features["camera_feature"] = self._get_camera_feature(agent_input)
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
+        features["trajectories"] = self._get_trajectory_features(agent_input)
         features["status_feature"] = torch.concatenate(
             [
                 torch.tensor(agent_input.ego_statuses[-1].driving_command, dtype=torch.float32),
@@ -166,6 +167,23 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         gaze_x = xs.float().mean()
         gaze_y = ys.float().mean()
         return gaze_x.item(), gaze_y.item()
+
+    def _get_trajectory_features(self, agent_input):
+        trajectories = []
+        for obj in agent_input.trajectories:
+            traj_data = agent_input.trajectories[obj]
+            if traj_data["category"] not in ["vehicle", "pedestrian"]:
+                continue
+            if len(traj_data["trajectory"])<4:
+                continue
+            # Keep only x and y
+            xy_traj = [[p[0], p[1]] for p in traj_data["trajectory"]]
+            trajectories.append(xy_traj)
+
+        # Sort by distance of first point to origin and take 30 closest
+        trajectories = sorted(trajectories, key=lambda t: (t[-1][0] ** 2 + t[-1][1] ** 2) ** 0.5)[:30]
+
+        return torch.tensor(trajectories, dtype=torch.float32)
 
 
 class HiddenTargetBuilder(AbstractTargetBuilder):
