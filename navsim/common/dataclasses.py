@@ -339,21 +339,16 @@ class Scene:
 
     def get_agent_input(self) -> AgentInput:
         """
-        Extracts agents input dataclass (without privileged information) from scene.
-        :return: agent input dataclass
+        Extracts agent input dataclass, with trajectories of all objects
+        relative to the last ego pose (ego_statuses[-1]).
         """
-
         local_ego_poses = self.get_history_trajectory().poses
         ego_statuses: List[EgoStatus] = []
         cameras: List[Cameras] = []
         lidars: List[Lidar] = []
 
-        ## TODO
-        ## self.frames[frame_idx].annotations add and keep track then compute trajectory for pedestrian and vechicles
-
         for frame_idx in range(self.scene_metadata.num_history_frames):
             frame_ego_status = self.frames[frame_idx].ego_status
-
             ego_statuses.append(
                 EgoStatus(
                     ego_pose=local_ego_poses[frame_idx],
@@ -365,23 +360,34 @@ class Scene:
             cameras.append(self.frames[frame_idx].cameras)
             lidars.append(self.frames[frame_idx].lidar)
 
-        # For trajectories of nearby objects
-        trajectories = {}  # tracked obj : [trajectories]
-        origin = StateSE2(*local_ego_poses[-1])
-        for frame_idx in range(self.scene_metadata.num_history_frames):
-            ann = self.frames[frame_idx].annotations
+        # Collect all trajectories relative to ref_ego
+        trajectories = {}  # tracked obj : {category, trajectory, boxes}
+
+        # for frame_idx in range(self.scene_metadata.num_history_frames):
+        for frame_idx in range(1):
+            frame = self.frames[frame_idx]
+            ann = frame.annotations
+
+            # reversed index for ego_statuses
+            ego_idx = self.scene_metadata.num_history_frames - 1 - frame_idx
+            ego_x, ego_y, ego_yaw = ego_statuses[ego_idx].ego_pose
+
+            cos, sin = np.cos(-ego_yaw), np.sin(-ego_yaw)
+            R = np.array([[cos, -sin],
+                          [sin, cos]])
 
             for box, inst, name in zip(ann.boxes, ann.track_tokens, ann.names):
                 if inst not in trajectories:
-                    trajectories[inst] = {"category": name, "trajectory": []}
+                    trajectories[inst] = {"category": name, "trajectory": [], "boxes": []}
 
-                # create SE2 array for object [x, y, yaw]
-                obj_se2 = np.array([[box[0], box[1], box[6]]], dtype=np.float64)
+                x, y, z, w, l, h, yaw = box
 
-                # convert to ego-centric coordinates
-                rel_se2 = convert_absolute_to_relative_se2_array(origin, obj_se2)
+                # position relative to ego
+                x_rel, y_rel = R @ (np.array([x, y]) - np.array([ego_x, ego_y]))
+                yaw_rel = yaw - ego_yaw
 
-                trajectories[inst]["trajectory"].append(rel_se2[0])  # [x_rel, y_rel, yaw_rel]
+                trajectories[inst]["trajectory"].append([x_rel, y_rel, yaw_rel])
+                trajectories[inst]["boxes"].append(box)
 
         return AgentInput(ego_statuses, cameras, lidars, trajectories)
 
