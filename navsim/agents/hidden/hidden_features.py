@@ -40,13 +40,14 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         """Inherited, see superclass."""
         return "transfuser_feature"
 
-    def compute_features(self, agent_input: AgentInput) -> Dict[str, torch.Tensor]:
+    def compute_features(self, agent_input: AgentInput,scene: Scene) -> Dict[str, torch.Tensor]:
         """Inherited, see superclass."""
         features = {}
         features["camera_feature"] = self._get_camera_feature(agent_input)
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
-        features["trajectories"],features["boxes"] = self._get_trajectory_features(agent_input)
+        features["trajectories"] = self._get_trajectory_features(agent_input,scene)
+        # features["trajectories"],features["boxes"] = self._get_trajectory_features(agent_input,scene)
         features["status_feature"] = torch.concatenate(
             [
                 torch.tensor(agent_input.ego_statuses[-1].driving_command, dtype=torch.float32),
@@ -54,8 +55,6 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
                 torch.tensor(agent_input.ego_statuses[-1].ego_acceleration, dtype=torch.float32),
             ],
         )
-
-
         return features
 
     def _get_camera_feature(self, agent_input: AgentInput) -> torch.Tensor:
@@ -123,84 +122,67 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
 
         return torch.tensor(features)
 
-    def _get_trajectory_features(self, agent_input):
-        trajectories_px = []
-        boxes_list = []
+    def _get_trajectory_features(self, agent_input, scene: Scene):
+        layers = [TrackedObjectType.VEHICLE, TrackedObjectType.PEDESTRIAN, TrackedObjectType.BICYCLE]
+        W, H = self._config.bev_semantic_frame
+        trajectories =  {}
+        boxes_list = {}
+        start_idx = scene.scene_metadata.num_history_frames
 
-        for obj, traj_data in agent_input.trajectories.items():
-            if traj_data["category"] not in ["vehicle", "pedestrian", "bicycle"]:
-                continue
+        for frame_idx in range(start_idx, start_idx + 4):
+            annotations = scene.frames[frame_idx].annotations
+            for name_value, box_value, tracked_id in zip(annotations.names, annotations.boxes,
+                                                         annotations.track_tokens):
+                if tracked_object_types[name_value] not in layers:
+                    continue
 
-            traj = traj_data["trajectory"]
-            boxes = traj_data.get("boxes", [])
+                if tracked_id not in trajectories:
+                    trajectories[tracked_id] = []
+                    # boxes_list[tracked_id] = []
 
-            # pad to 4 points
-            if len(traj) < 4:
-                pad_val = traj[-1] if traj else [0, 0]
-                traj = traj + [pad_val] * (4 - len(traj))
-                if boxes:
-                    boxes = boxes + [boxes[-1]] * (4 - len(boxes))
+                x, y, heading = box_value[0], box_value[1], box_value[-1]
+                # box_length, box_width, box_height = box_value[3], box_value[4], box_value[5]
+                # agent_box = OrientedBox(StateSE2(x, y, heading), box_length, box_width, box_height)
 
-            # convert trajectory points to LiDAR pixels
-            traj_points = np.array(traj, dtype=np.float32).reshape(-1, 1, 2)
-            traj_px = self._coords_to_pixel(traj_points).reshape(-1, 2)
-            trajectories_px.append(traj_px)
+                rel_cords = self._coords_to_pixel(np.array([[x, y]]))
+                x, y = rel_cords[0]
 
-            # boxes in LiDAR pixels
-            boxes_px = []
-            for b in boxes:
-                x, y, heading = b[0], b[1], b[2]
-                length, width, height = b[3], b[4], b[5]
-                agent_box = OrientedBox(StateSE2(x, y, heading), length, width, height)
-                exterior = np.array(agent_box.geometry.exterior.coords).reshape((-1, 1, 2))
-                exterior_px = self._coords_to_pixel(exterior)
-                exterior_px = self.rotate_flip_boxes_bev(exterior_px,*self._config.bev_semantic_frame[::-1],)
-                boxes_px.append(exterior_px)
+                coords_np = np.array([[x, y]])
+                coords_np = self.flip_coords(coords_np, H)
+                coords_np = self.flip_upside_down(coords_np, H)
+                x, y = coords_np[0]
 
-            boxes_list.append(boxes_px)
+                trajectories[tracked_id].append((x, y))
+                # boxes_list[tracked_id].append(agent_box)
 
-        # sort by distance of last point to origin and keep 30 closest
-        sort_idx = sorted(range(len(trajectories_px)),
-                          key=lambda i: np.linalg.norm(trajectories_px[i][-1]))[:30]
-        trajectories_px = [trajectories_px[i] for i in sort_idx]
-        boxes_list = [boxes_list[i] for i in sort_idx]
+        # Keep only agents with exactly 4 future steps
+        trajectories = {k: v for k, v in trajectories.items() if len(v) == 4}
+        # boxes_list = {k: v for k, v in boxes_list.items() if len(v) == 4}
 
-        return torch.tensor(trajectories_px, dtype=torch.float32), boxes_list
+        # Select up to 15 closest agents (based on first point)
+        agent_x, agent_y = 0, 0
+        distances = {k: np.linalg.norm(np.array(v[0]) - np.array([agent_x, agent_y]))
+                     for k, v in trajectories.items()}
+        closest_ids = sorted(distances, key=distances.get)[:15]
 
-    def rotate_flip_boxes_bev(self,boxes_px, H, W, rotate_ccw90=True, flip_vert=True):
-        """
-        Rotate and/or flip boxes in BEV image coordinates.
-        boxes_px: list of boxes, each box is Nx2 array
-        H, W: image height and width
-        rotate_ccw90: whether to rotate 90° counterclockwise
-        flip_vert: whether to flip vertically (y-axis)
-        Returns list of transformed boxes (same format)
-        """
-        all_pts = np.vstack([b.reshape(-1, 2) for b in boxes_px])
+        # Build lists
+        trajs = [trajectories[k] for k in closest_ids]
+        # boxes = [[
+        #     [box.center.x, box.center.y, box.center.heading,
+        #      box.length, box.width, box.height, 0.0]
+        #     for box in boxes_list[k]
+        # ] for k in closest_ids]
 
-        # image center
-        img_center = np.array([W / 2, H / 2])
-        translated = all_pts - img_center
+        # Pad to 15 agents if fewer
+        while len(trajs) < 15:
+            trajs.append([(0.0, 0.0)] * 4)
+            # boxes.append([[0.0] * 7] * 4)
 
-        if rotate_ccw90:
-            R = np.array([[0, -1],
-                          [1, 0]])
-            translated = translated @ R.T
+        trajectories_tensor = torch.tensor(trajs, dtype=torch.float32)  # (15, 4, 2)
+        # boxes_tensor = torch.tensor(boxes, dtype=torch.float32)  # (15, 4, 7)
 
-        if flip_vert:
-            translated[:, 1] *= -1
-
-        transformed = translated + img_center
-
-        # split back into original boxes
-        idx = 0
-        new_boxes_px = []
-        for b in boxes_px:
-            n = b.shape[0]
-            new_boxes_px.append(transformed[idx:idx + n])
-            idx += n
-
-        return new_boxes_px
+        # return trajectories_tensor, boxes_tensor
+        return trajectories_tensor
 
     def _get_gaze_feature(self, image):
         C, H, W = image.shape
@@ -260,6 +242,22 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         coords_idcs = (coords / self._config.bev_pixel_size) + pixel_center
 
         return coords_idcs.astype(np.int32)
+
+    def flip_upside_down(self,coords, H):
+        """
+        coords: (N,2) array (x, y)
+        H: image height
+        """
+        x, y = coords[:, 0], coords[:, 1]
+        new_x = x
+        new_y = H - 1 - y
+        return np.stack([new_x, new_y], axis=-1)
+
+    def flip_coords(self,coords, W):
+        x, y = coords[:, 0], coords[:, 1]
+        new_x = y
+        new_y = W - 1 - x
+        return np.stack([new_x, new_y], axis=-1)
 
 class HiddenTargetBuilder(AbstractTargetBuilder):
     """Output target builder for TransFuser."""
@@ -424,6 +422,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
                 x, y, heading = box_value[0], box_value[1], box_value[-1]
                 box_length, box_width, box_height = box_value[3], box_value[4], box_value[5]
                 agent_box = OrientedBox(StateSE2(x, y, heading), box_length, box_width, box_height)
+
                 exterior = np.array(agent_box.geometry.exterior.coords).reshape((-1, 1, 2))
                 exterior = self._coords_to_pixel(exterior)
                 cv2.fillPoly(box_polygon_mask, [exterior], color=255)

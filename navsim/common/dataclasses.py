@@ -145,7 +145,6 @@ class AgentInput:
     ego_statuses: List[EgoStatus]
     cameras: List[Cameras]
     lidars: List[Lidar]
-    trajectories: Dict = None
 
     @classmethod
     def from_scene_dict_list(
@@ -359,37 +358,7 @@ class Scene:
             )
             cameras.append(self.frames[frame_idx].cameras)
             lidars.append(self.frames[frame_idx].lidar)
-
-        # Collect all trajectories relative to ref_ego
-        trajectories = {}  # tracked obj : {category, trajectory, boxes}
-
-        # for frame_idx in range(self.scene_metadata.num_history_frames):
-        for frame_idx in range(1):
-            frame = self.frames[frame_idx]
-            ann = frame.annotations
-
-            # reversed index for ego_statuses
-            ego_idx = self.scene_metadata.num_history_frames - 1 - frame_idx
-            ego_x, ego_y, ego_yaw = ego_statuses[ego_idx].ego_pose
-
-            cos, sin = np.cos(-ego_yaw), np.sin(-ego_yaw)
-            R = np.array([[cos, -sin],
-                          [sin, cos]])
-
-            for box, inst, name in zip(ann.boxes, ann.track_tokens, ann.names):
-                if inst not in trajectories:
-                    trajectories[inst] = {"category": name, "trajectory": [], "boxes": []}
-
-                x, y, z, w, l, h, yaw = box
-
-                # position relative to ego
-                x_rel, y_rel = R @ (np.array([x, y]) - np.array([ego_x, ego_y]))
-                yaw_rel = yaw - ego_yaw
-
-                trajectories[inst]["trajectory"].append([x_rel, y_rel, yaw_rel])
-                trajectories[inst]["boxes"].append(box)
-
-        return AgentInput(ego_statuses, cameras, lidars, trajectories)
+        return AgentInput(ego_statuses, cameras, lidars)
 
     @classmethod
     def _build_map_api(cls, map_name: str) -> AbstractMap:
