@@ -6,10 +6,10 @@ import numpy as np
 import torch
 import pickle
 
-from navsim.agents.hidden.hidden_config import HiddenConfig
 
 
-def draw_bev(features, ego_fut_trajs_rel, trajectories=None,boxes=None, path="/mnt/ds/debug/original/bev.png"):
+
+def draw_bev(features, ego_fut_trajs_rel, trajectories=None, boxes=None):
     bev_img_draw = features[0, :, :]  # (H,W)
     bev_img_draw = (bev_img_draw * 255).to(torch.uint8).cpu().numpy()
 
@@ -20,53 +20,74 @@ def draw_bev(features, ego_fut_trajs_rel, trajectories=None,boxes=None, path="/m
     resolution = 0.1
     origin = np.array([W // 2, H // 2])
 
-    # Draw ego/vehicle future trajectory (dark blue)
+    # Draw ego/vehicle future trajectory (green, thicker)
     if ego_fut_trajs_rel is not None:
         for pos in ego_fut_trajs_rel:
             x_px = int(origin[0] - pos[1] / resolution)
             y_px = int(origin[1] - pos[0] / resolution)
             if 0 <= x_px < W and 0 <= y_px < H:
-                bev_img_draw[y_px, x_px] = (0, 0, 139)  # Dark blue BGR
+                # Draw a small square instead of single pixel
+                size = 2  # box half-size
+                x_min = max(x_px - size, 0)
+                x_max = min(x_px + size + 1, W)
+                y_min = max(y_px - size, 0)
+                y_max = min(y_px + size + 1, H)
+                bev_img_draw[y_min:y_max, x_min:x_max] = (0, 255, 0)  # green BGR
 
+    return bev_img_draw
+
+
+def draw_bev_save(features, ego_fut_trajs_rel, trajectories=None,boxes=None, path="/mnt/ds/debug/original/bev.png"):
+    bev_img_draw = draw_bev(features,ego_fut_trajs_rel,trajectories,boxes)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     cv2.imwrite(path, bev_img_draw)
 
 
-def draw_semantic(bev_map_tensor, ego_fut_trajs_rel=None, trajectories=None,boxes=None, save_path="/mnt/ds/debug/original/bev_semantic_debug.png"):
+def draw_semantic_save(bev_map_tensor, ego_fut_trajs_rel=None, trajectories=None,boxes=None, save_path="/mnt/ds/debug/original/bev_semantic_debug.png"):
+    bev_img = draw_semantic(bev_map_tensor, ego_fut_trajs_rel, trajectories)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    cv2.imwrite(save_path, bev_img)
+
+
+def draw_semantic(bev_map_tensor, ego_fut_trajs_rel, trajectories):
     bev_map = bev_map_tensor.cpu().numpy().astype(np.int32)
     H, W = bev_map.shape
     center = np.array([W / 2, H / 2])
     angle = np.pi / 2  # 90° CCW, use -np.pi/2 for CW
+    resolution = 0.1
     colors = {
-        0: (0, 0, 0),        # background → Black
-        1: (128, 64, 128),   # road → Dark Purple
-        2: (0, 255, 0),      # walkway → Green
-        3: (255, 255, 0),    # centerline → Yellow
+        0: (0, 0, 0),  # background → Black
+        1: (128, 64, 128),  # road → Dark Purple
+        2: (0, 255, 0),  # walkway → Green
+        3: (255, 255, 0),  # centerline → Yellow
         4: (192, 192, 192),  # static object → Light Gray
-        5: (0, 0, 255),      # vehicle → Blue
-        6: (255, 0, 0),      # pedestrian → Red
+        5: (0, 0, 255),  # vehicle → Blue
+        6: (255, 0, 0),  # pedestrian → Red
     }
-
     bev_img = np.zeros((H, W, 3), dtype=np.uint8)
     for label, color in colors.items():
         bev_img[bev_map == label] = color
-
     # angle_deg = 90  # rotation angle in degrees (positive = CCW)
     # center = (bev_img.shape[1] // 2, bev_img.shape[0] // 2)  # rotate around image center
     # M = cv2.getRotationMatrix2D(center, angle_deg, 1.0)
     # bev_img = cv2.warpAffine(bev_img, M, (bev_img.shape[1], bev_img.shape[0]))
     # # Flip vertically (upside down)
     # bev_img = cv2.flip(bev_img, 0)  # 0 = vertical flip
-
     origin = np.array([W // 2, H // 2])
     # Draw ego/vehicle trajectory (dark blue)
+    # Draw ego/vehicle future trajectory (green, thicker)
     if ego_fut_trajs_rel is not None:
         for pos in ego_fut_trajs_rel:
-            x_px = int(origin[0] - pos[1])
-            y_px = int(origin[1] - pos[0])
+            x_px = int(origin[0] - pos[1] / resolution)
+            y_px = int(origin[1] - pos[0] / resolution)
             if 0 <= x_px < W and 0 <= y_px < H:
-                bev_img[y_px, x_px] = (0, 0, 139)  # Dark blue
-
+                # Draw a small square instead of single pixel
+                size = 2  # box half-size
+                x_min = max(x_px - size, 0)
+                x_max = min(x_px + size + 1, W)
+                y_min = max(y_px - size, 0)
+                y_max = min(y_px + size + 1, H)
+                bev_img[y_min:y_max, x_min:x_max] = (0, 255, 0)  # green BGR
     # Draw other trajectories (green)
     if trajectories is not None:
         # for traj_list, box_list in zip(trajectories, boxes):
@@ -92,9 +113,8 @@ def draw_semantic(bev_map_tensor, ego_fut_trajs_rel=None, trajectories=None,boxe
                     # cv2.fillPoly(bev_img, [corners_px.astype(np.int32)], color=(0, 255, 255))
 
                     bev_img[y_px, x_px] = color  # Green
+    return bev_img
 
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    cv2.imwrite(save_path, bev_img)
 
 def flip_upside_down(coords, H):
     """
@@ -161,8 +181,8 @@ def draw_feature_image(feature_tensor, save_path="/mnt/ds/debug/original/feature
     cv2.imwrite(save_path, img)
 
 if __name__ == "__main__":
-    feat_path = "/mnt/ds/navsim-main/exp/training_cache/2021.07.09.23.23.48_veh-26_01454_02217/6bd717655a5d5bc5/transfuser_feature.gz"
-    target_path = "/mnt/ds/navsim-main/exp/training_cache/2021.07.09.23.23.48_veh-26_01454_02217/6bd717655a5d5bc5/transfuser_target.gz"
+    feat_path = "/mnt/ds/navsim-main/exp/training_cache/2021.05.12.22.00.38_veh-35_01008_01518/41bb74b4738f5a8b/transfuser_feature.gz"
+    target_path = "/mnt/ds/navsim-main/exp/training_cache/2021.05.12.22.00.38_veh-35_01008_01518/41bb74b4738f5a8b/transfuser_target.gz"
 
     with gzip.open(feat_path, "rb") as f:
         features = pickle.load(f)
@@ -170,6 +190,6 @@ if __name__ == "__main__":
     with gzip.open(target_path, "rb") as f:
         target = pickle.load(f)
 
-    draw_bev(features["lidar_feature"],target["trajectory"],features['trajectories'],None)
+    draw_bev_save(features["lidar_feature"],target["trajectory"],features['trajectories'],None)
     draw_semantic(target["bev_semantic_map"],target["trajectory"],features['trajectories'],None)
     draw_feature_image(features["camera_feature"])
