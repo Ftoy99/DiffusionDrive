@@ -157,7 +157,6 @@ class AgentInput:
     ego_statuses: List[EgoStatus]
     cameras: List[Cameras]
     lidars: List[Lidar]
-    trajectories: List[List]
 
     @classmethod
     def from_scene_dict_list(
@@ -194,7 +193,6 @@ class AgentInput:
         ego_statuses: List[EgoStatus] = []
         cameras: List[EgoStatus] = []
         lidars: List[Lidar] = []
-        trajectories: List[List] = []
         for frame_idx in range(num_history_frames):
             ego_dynamic_state = scene_dict_list[frame_idx]["ego_dynamic_state"]
             ego_status = EgoStatus(
@@ -222,7 +220,7 @@ class AgentInput:
                 )
             )
 
-        return AgentInput(ego_statuses, cameras, lidars,trajectories)
+        return AgentInput(ego_statuses, cameras, lidars)
 
 
 @dataclass
