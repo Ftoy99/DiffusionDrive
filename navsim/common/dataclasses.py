@@ -28,6 +28,16 @@ NAVSIM_INTERVAL_LENGTH: float = 0.5
 OPENSCENE_DATA_ROOT = os.environ.get("OPENSCENE_DATA_ROOT")
 NUPLAN_MAPS_ROOT = os.environ.get("NUPLAN_MAPS_ROOT")
 
+tracked_object_types: Dict[str, TrackedObjectType] = {
+    "vehicle": TrackedObjectType.VEHICLE,
+    "pedestrian": TrackedObjectType.PEDESTRIAN,
+    "bicycle": TrackedObjectType.BICYCLE,
+    "traffic_cone": TrackedObjectType.TRAFFIC_CONE,
+    "barrier": TrackedObjectType.BARRIER,
+    "czone_sign": TrackedObjectType.CZONE_SIGN,
+    "generic_object": TrackedObjectType.GENERIC_OBJECT,
+    "ego": TrackedObjectType.EGO,
+}
 
 @dataclass
 class Camera:

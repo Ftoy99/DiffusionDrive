@@ -25,17 +25,6 @@ from navsim.planning.training.abstract_feature_target_builder import AbstractFea
 
 from navsim.agents.hidden.depth_gaze import depth_inf
 
-tracked_object_types: Dict[str, TrackedObjectType] = {
-    "vehicle": TrackedObjectType.VEHICLE,
-    "pedestrian": TrackedObjectType.PEDESTRIAN,
-    "bicycle": TrackedObjectType.BICYCLE,
-    "traffic_cone": TrackedObjectType.TRAFFIC_CONE,
-    "barrier": TrackedObjectType.BARRIER,
-    "czone_sign": TrackedObjectType.CZONE_SIGN,
-    "generic_object": TrackedObjectType.GENERIC_OBJECT,
-    "ego": TrackedObjectType.EGO,
-}
-
 class HiddenFeatureBuilder(AbstractFeatureBuilder):
     """Input feature builder for TransFuser."""
 
