@@ -46,7 +46,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         features["camera_feature"] = self._get_camera_feature(agent_input)
         features["gaze"] = self._get_gaze_feature(features["camera_feature"])
         features["lidar_feature"] = self._get_lidar_feature(agent_input)
-        features["trajectories"] = self._get_trajectory_features(agent_input,scene)
+        features["trajectories"] = agent_input.trajectories
         features["status_feature"] = torch.concatenate(
             [
                 torch.tensor(agent_input.ego_statuses[-1].driving_command, dtype=torch.float32),
