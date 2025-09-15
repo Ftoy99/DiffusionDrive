@@ -8,10 +8,10 @@ import hydra
 from PIL import Image
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from flask import Flask, render_template, request, jsonify, Response, send_file
+from flask import Flask, render_template, request, send_file
 
 from navsim.agents.abstract_agent import AbstractAgent
-from navsim.common.dataclasses import SceneFilter, SensorConfig
+from navsim.common.dataclasses import SceneFilter
 from navsim.common.dataloader import SceneLoader
 from test.visualization import draw_bev, draw_semantic
 

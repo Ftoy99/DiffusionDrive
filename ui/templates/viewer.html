@@ -1,21 +1,6 @@
-
-  <h3>Features</h3>
-  <div id="features" class="grid grid-cols-3 gap-4 mt-2">
-    <div id="camera-container" hx-get="/camera" hx-trigger="load, change from:#scenario-select"></div>
-    <div id="gaze-container" hx-get="/gaze" hx-trigger="load, change from:#scenario-select"></div>
-    <div id="lidar-container" hx-get="/lidar" hx-trigger="load, change from:#scenario-select"></div>
-    <div id="semantic-container" hx-get="/semantic" hx-trigger="load, change from:#scenario-select"></div>
-  </div>
-
-  <h3>Targets</h3>
-  <div id="targets" class="grid grid-cols-3 gap-4 mt-2">
-    <!-- Example target -->
-    <div class="border rounded-lg p-2 shadow hover:shadow-lg transition">
-      <img src="/static/target1.png" alt="Target 1" class="w-full h-32 object-contain">
-      <p class="text-center mt-2">Target 1</p>
-    </div>
-    <div class="border rounded-lg p-2 shadow hover:shadow-lg transition">
-      <img src="/static/target2.png" alt="Target 2" class="w-full h-32 object-contain">
-      <p class="text-center mt-2">Target 2</p>
-    </div>
-  </div>
+<div id="features" class="grid grid-cols-3 gap-4 mt-2">
+  <div id="camera-container" hx-get="/camera" hx-trigger="load, change from:#scenario-select"></div>
+  <div id="gaze-container" hx-get="/gaze" hx-trigger="load, change from:#scenario-select"></div>
+  <div id="lidar-container" hx-get="/lidar" hx-trigger="load, change from:#scenario-select"></div>
+  <div id="semantic-container" hx-get="/semantic" hx-trigger="load, change from:#scenario-select"></div>
+</div>

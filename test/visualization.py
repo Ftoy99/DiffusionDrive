@@ -34,6 +34,15 @@ def draw_bev(features, ego_fut_trajs_rel, trajectories=None, boxes=None):
                 y_max = min(y_px + size + 1, H)
                 bev_img_draw[y_min:y_max, x_min:x_max] = (0, 255, 0)  # green BGR
 
+    # Draw a unique color block in the middle
+    center_size = 2  # half-size, so total 4x4
+    x_c, y_c = origin
+    x_min = max(x_c - center_size, 0)
+    x_max = min(x_c + center_size + 1, W)
+    y_min = max(y_c - center_size, 0)
+    y_max = min(y_c + center_size + 1, H)
+    bev_img_draw[y_min:y_max, x_min:x_max] = (255, 0, 255)  # magenta
+
     return bev_img_draw
 
 
@@ -111,8 +120,21 @@ def draw_semantic(bev_map_tensor, ego_fut_trajs_rel, trajectories):
                     # corners_px = flip_coords(corners_px,H)
                     # corners_px = flip_upside_down(corners_px,H)
                     # cv2.fillPoly(bev_img, [corners_px.astype(np.int32)], color=(0, 255, 255))
+                    size = 1  # same as ego
+                    x_min = max(x_px - size, 0)
+                    x_max = min(x_px + size + 1, W)
+                    y_min = max(y_px - size, 0)
+                    y_max = min(y_px + size + 1, H)
+                    bev_img[y_min:y_max, x_min:x_max] = color
 
-                    bev_img[y_px, x_px] = color  # Green
+    # Draw a unique color block in the middle
+    center_size = 2  # half-size, so total 4x4
+    x_c, y_c = origin
+    x_min = max(x_c - center_size, 0)
+    x_max = min(x_c + center_size + 1, W)
+    y_min = max(y_c - center_size, 0)
+    y_max = min(y_c + center_size + 1, H)
+    bev_img[y_min:y_max, x_min:x_max] = (255, 0, 255)  # magenta
     return bev_img
 
 
