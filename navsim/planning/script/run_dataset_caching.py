@@ -23,9 +23,10 @@ logger = logging.getLogger(__name__)
 CONFIG_PATH = "config/training"
 CONFIG_NAME = "default_training"
 
-# DEBUG TODO REMOVE
+# TODO REMOVE For the debugger to not hang
 import matplotlib
 matplotlib.use("Agg")
+
 
 def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[Optional[Any]]:
     """
@@ -65,7 +66,6 @@ def cache_features(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[
 
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(cfg: DictConfig) -> None:
-
     """
     Main entrypoint for dataset caching script.
     :param cfg: omegaconf dictionary

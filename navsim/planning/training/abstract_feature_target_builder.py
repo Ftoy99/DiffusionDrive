@@ -20,7 +20,7 @@ class AbstractFeatureBuilder:
         pass
 
     @abstractmethod
-    def compute_features(self, agent_input: AgentInput,scene: Scene) -> Dict[str, Tensor]:
+    def compute_features(self, agent_input: AgentInput) -> Dict[str, Tensor]:
         """
         Computes features from the AgentInput object, i.e., without access to ground-truth.
         Outputs a dictionary where each item has a unique identifier and maps to a single feature tensor.
