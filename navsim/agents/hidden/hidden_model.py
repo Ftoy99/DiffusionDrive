@@ -129,6 +129,7 @@ class HiddenModel(nn.Module):
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
+        trajectories: torch.Tensor = features["trajectories"]
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]

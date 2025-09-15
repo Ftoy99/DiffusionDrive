@@ -212,7 +212,7 @@ class AgentInput:
                 )
             )
 
-        return AgentInput(ego_statuses, cameras, lidars)
+        return AgentInput(ego_statuses, cameras, lidars,trajectories)
 
 
 @dataclass
