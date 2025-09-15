@@ -40,7 +40,7 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
         """Inherited, see superclass."""
         return "transfuser_feature"
 
-    def compute_features(self, agent_input: AgentInput,scene: Scene) -> Dict[str, torch.Tensor]:
+    def compute_features(self, agent_input: AgentInput) -> Dict[str, torch.Tensor]:
         """Inherited, see superclass."""
         features = {}
         features["camera_feature"] = self._get_camera_feature(agent_input)
