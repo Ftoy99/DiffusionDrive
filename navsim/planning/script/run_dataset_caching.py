@@ -96,7 +96,7 @@ def main(cfg: DictConfig) -> None:
         }
         for log_file, tokens_list in scene_loader.get_tokens_list_per_log().items()
     ]
-
+    #
     # logger.info("Running in single-threaded mode (no WorkerPool)")
     # for dp in data_points:
     #     cache_features([dp])

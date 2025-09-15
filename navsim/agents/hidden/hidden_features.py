@@ -120,68 +120,6 @@ class HiddenFeatureBuilder(AbstractFeatureBuilder):
 
         return torch.tensor(features)
 
-    def _get_trajectory_features(self, agent_input, scene: Scene):
-        layers = [TrackedObjectType.VEHICLE, TrackedObjectType.PEDESTRIAN, TrackedObjectType.BICYCLE]
-        W, H = self._config.bev_semantic_frame
-        trajectories =  {}
-        boxes_list = {}
-        start_idx = scene.scene_metadata.num_history_frames
-
-        for frame_idx in range(start_idx, start_idx + 4):
-            annotations = scene.frames[frame_idx].annotations
-            for name_value, box_value, tracked_id in zip(annotations.names, annotations.boxes,
-                                                         annotations.track_tokens):
-                if tracked_object_types[name_value] not in layers:
-                    continue
-
-                if tracked_id not in trajectories:
-                    trajectories[tracked_id] = []
-                    # boxes_list[tracked_id] = []
-
-                x, y, heading = box_value[0], box_value[1], box_value[-1]
-                # box_length, box_width, box_height = box_value[3], box_value[4], box_value[5]
-                # agent_box = OrientedBox(StateSE2(x, y, heading), box_length, box_width, box_height)
-
-                rel_cords = self._coords_to_pixel(np.array([[x, y]]))
-                x, y = rel_cords[0]
-
-                coords_np = np.array([[x, y]])
-                coords_np = self.flip_coords(coords_np, H)
-                coords_np = self.flip_upside_down(coords_np, H)
-                x, y = coords_np[0]
-
-                trajectories[tracked_id].append((x, y))
-                # boxes_list[tracked_id].append(agent_box)
-
-        # Keep only agents with exactly 4 future steps
-        trajectories = {k: v for k, v in trajectories.items() if len(v) == 4}
-        # boxes_list = {k: v for k, v in boxes_list.items() if len(v) == 4}
-
-        # Select up to 15 closest agents (based on first point)
-        agent_x, agent_y = 0, 0
-        distances = {k: np.linalg.norm(np.array(v[0]) - np.array([agent_x, agent_y]))
-                     for k, v in trajectories.items()}
-        closest_ids = sorted(distances, key=distances.get)[:15]
-
-        # Build lists
-        trajs = [trajectories[k] for k in closest_ids]
-        # boxes = [[
-        #     [box.center.x, box.center.y, box.center.heading,
-        #      box.length, box.width, box.height, 0.0]
-        #     for box in boxes_list[k]
-        # ] for k in closest_ids]
-
-        # Pad to 15 agents if fewer
-        while len(trajs) < 15:
-            trajs.append([(0.0, 0.0)] * 4)
-            # boxes.append([[0.0] * 7] * 4)
-
-        trajectories_tensor = torch.tensor(trajs, dtype=torch.float32)  # (15, 4, 2)
-        # boxes_tensor = torch.tensor(boxes, dtype=torch.float32)  # (15, 4, 7)
-
-        # return trajectories_tensor, boxes_tensor
-        return trajectories_tensor
-
     def _get_gaze_feature(self, image):
         C, H, W = image.shape
 

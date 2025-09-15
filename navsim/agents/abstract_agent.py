@@ -72,9 +72,6 @@ class AbstractAgent(torch.nn.Module, ABC):
             features.update(builder.compute_features(agent_input))
 
         # add batch dimension
-        #TODO Remove debug
-        for k, v in features.items():
-            print(type(v))
         features = {k: v.unsqueeze(0) for k, v in features.items()}
 
         # forward pass

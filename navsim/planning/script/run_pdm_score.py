@@ -31,6 +31,9 @@ logger = logging.getLogger(__name__)
 CONFIG_PATH = "config/pdm_scoring"
 CONFIG_NAME = "default_run_pdm_score"
 
+# TODO REMOVE For the debugger to not hang
+import matplotlib
+matplotlib.use("Agg")
 
 def run_pdm_score(args: List[Dict[str, Union[List[str], DictConfig]]]) -> List[Dict[str, Any]]:
     """
@@ -108,7 +111,7 @@ def main(cfg: DictConfig) -> None:
     """
 
     build_logger(cfg)
-    worker = build_worker(cfg)
+    # worker = build_worker(cfg)
 
     # Extract scenes based on scene-loader to know which tokens to distribute across workers
     # TODO: infer the tokens per log from metadata, to not have to load metric cache and scenes here
@@ -136,7 +139,10 @@ def main(cfg: DictConfig) -> None:
         }
         for log_file, tokens_list in scene_loader.get_tokens_list_per_log().items()
     ]
-    score_rows: List[Tuple[Dict[str, Any], int, int]] = worker_map(worker, run_pdm_score, data_points)
+    logger.info("Running in single-threaded mode (no WorkerPool)")
+    for dp in data_points:
+        score_rows = run_pdm_score([dp])
+    # score_rows: List[Tuple[Dict[str, Any], int, int]] = worker_map(worker, run_pdm_score, data_points)
 
     pdm_score_df = pd.DataFrame(score_rows)
     num_sucessful_scenarios = pdm_score_df["valid"].sum()
