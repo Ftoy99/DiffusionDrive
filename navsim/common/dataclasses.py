@@ -19,6 +19,7 @@ from nuplan.database.utils.pointclouds.lidar import LidarPointCloud
 from nuplan.common.maps.abstract_map import AbstractMap, SemanticMapLayer, MapObject
 from nuplan.common.actor_state.oriented_box import OrientedBox
 from nuplan.common.actor_state.tracked_objects_types import TrackedObjectType
+from navsim.planning.scenario_builder.navsim_scenario_utils import tracked_object_types
 
 from navsim.planning.simulation.planner.pdm_planner.utils.pdm_geometry_utils import (
     convert_absolute_to_relative_se2_array,
@@ -365,10 +366,10 @@ class Scene:
         W, H = self._config.bev_semantic_frame
         trajectories = {}
         boxes_list = {}
-        start_idx = scene.scene_metadata.num_history_frames
+        start_idx = self.scene_metadata.num_history_frames
 
         for frame_idx in range(start_idx, start_idx + 4):
-            annotations = scene.frames[frame_idx].annotations
+            annotations = self.frames[frame_idx].annotations
             for name_value, box_value, tracked_id in zip(annotations.names, annotations.boxes,
                                                          annotations.track_tokens):
                 if tracked_object_types[name_value] not in layers:
@@ -418,6 +419,7 @@ class Scene:
 
         trajectories = torch.tensor(trajs, dtype=torch.float32)  # (15, 4, 2)
         # boxes_tensor = torch.tensor(boxes, dtype=torch.float32)  # (15, 4, 7)
+        print(trajectories)
         return AgentInput(ego_statuses, cameras, lidars,trajectories)
 
     @classmethod
