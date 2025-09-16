@@ -24,45 +24,26 @@
             hx-trigger="load"
             hx-target="#scenario-select"
             hx-swap="innerHTML"
-            hx-on="change: htmx.ajax('GET', '/scenario', {target:'#viewer', values:{scenario:this.value}})">
+            hx-on="change: htmx.ajax('GET', '/scenario', {target:'#inputs', values:{scenario:this.value}})">
       <option value="">-- choose --</option>
     </select>
 
   <button class="p-2 mt-auto bg-blue-600 rounded hover:bg-blue-700"
           hx-post="/run_inference"
           hx-target="#viewer"
+          hx-swap="innerHTML"
           hx-include="#model-select,#scenario-select">
     Run Inference
   </button>
   </div>
 
   <!-- Main viewer -->
-  <div id="viewer" class="flex-1 p-4 bg-gray-800 text-white overflow-auto space-y-6">
-
-    <!-- Inputs -->
-    <div class="p-4 bg-gray-900 rounded shadow">
-      <h4 class="font-semibold mb-2">Inputs</h4>
-      <div id="inputs" class="border border-gray-700 rounded p-2 min-h-[100px]">
-        <!-- Input content will be loaded here -->
-      </div>
-    </div>
-
-    <!-- Targets -->
-    <div class="p-4 bg-gray-900 rounded shadow">
-      <h4 class="font-semibold mb-2">Targets</h4>
-      <div id="targets" class="border border-gray-700 rounded p-2 min-h-[100px]">
-        <!-- Target content will be loaded here -->
-      </div>
-    </div>
-
-    <!-- Outputs -->
-    <div class="p-4 bg-gray-900 rounded shadow">
-      <h4 class="font-semibold mb-2">Outputs</h4>
-      <div id="outputs" class="border border-gray-700 rounded p-2 min-h-[100px]">
-        <!-- Inference results will appear here -->
-      </div>
-    </div>
-
+  <div id="viewer" class="flex-1 p-4 bg-gray-800 text-white overflow-auto space-y-6"
+       hx-get="/inference_results"
+       hx-trigger="load"
+       hx-include="#model-select,#scenario-select">
+    <!-- Inference content will load here on page load -->
   </div>
+
 
 </div>
