@@ -166,7 +166,6 @@ class HiddenModel(nn.Module):
 
 
         traj_mask = (trajectories.abs().sum(dim=-1).sum(dim=-1) == 0)
-        print(traj_mask)
         #Trajectories encoding
         trajectories_encoding = self.traj_gru_projection(trajectories)
         B,N,T,D = trajectories_encoding.shape
@@ -218,7 +217,6 @@ class HiddenModel(nn.Module):
         ], dim=1)  # [B, S+N]
 
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
-        print(pad_mask)
         query_out = self._tf_decoder(query, keyval,memory_key_padding_mask=pad_mask)
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
