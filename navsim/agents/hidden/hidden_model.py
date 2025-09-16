@@ -40,6 +40,9 @@ class HiddenModel(nn.Module):
         self._keyval_embedding = nn.Embedding(8 ** 2 + 1, config.tf_d_model)  # 65 x D
         nn.init.xavier_uniform_(self._keyval_embedding.weight)
 
+        self._trajectories_embedding = nn.Embedding(15, config.tf_d_model)  #TODO add in config # 15 x D
+        nn.init.xavier_uniform_(self._trajectories_embedding.weight)
+
         self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)  # 30 x D
         nn.init.xavier_uniform_(self._query_embedding.weight)
 
@@ -104,7 +107,7 @@ class HiddenModel(nn.Module):
             config=config,
         )
         self.bev_proj = nn.Sequential(
-            *linear_relu_ln(256, 1, 1, 320),
+            *linear_relu_ln(config.tf_d_model, 1, 1, 320),
         )
 
         # Gaze stuff
@@ -112,10 +115,14 @@ class HiddenModel(nn.Module):
                                                 features_only=True)  # Resnet18
 
         self.gaze_channel_align = nn.ModuleList([
-            nn.Conv2d(128, 256, 1),  # for 128x18x18
-            nn.Conv2d(256, 256, 1),  # for 256x9x9
-            nn.Conv2d(512, 256, 1),  # for 512x5x5
+            nn.Conv2d(128, config.tf_d_model, 1),  # for 128x18x18
+            nn.Conv2d(256, config.tf_d_model, 1),  # for 256x9x9
+            nn.Conv2d(512, config.tf_d_model, 1),  # for 512x5x5
         ])
+
+        #Trajectory encoding
+        self.traj_gru_projection = nn.Linear(2,64)
+        self.traj_gru = nn.GRU(64,config.tf_d_model,batch_first=True)
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
@@ -157,11 +164,20 @@ class HiddenModel(nn.Module):
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
 
+        #Trajectories encoding
+        trajectories_encoding = self.traj_gru_projection(trajectories)
+        B,N,T,D = trajectories_encoding.shape
+        trajectories_encoding = trajectories_encoding.view(B*N,T,D)
+        all_step , last_step = self.traj_gru(trajectories_encoding)
+        trajectories_encoding = last_step.squeeze(0).view(B,N,self._config.tf_d_model)
+        trajectories_encoding += self._trajectories_embedding.weight[None, ...]
+
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
-        keyval = torch.concatenate([bev_feature, status_encoding[:, None]], dim=1)  # B 65 256
-
+        keyval = torch.concatenate([bev_feature,status_encoding[:, None]], dim=1)  # B 65 256
         keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
+        #Add trajectory to keyval
+
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
 
         concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
@@ -187,12 +203,10 @@ class HiddenModel(nn.Module):
         else:
             gaze_query = None
 
-        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
+        #Trajectories
+        keyval = torch.concatenate([keyval,trajectories_encoding], dim=1)
 
-        # print(f"query.shape {query.shape}")
-        # print(f"keyval.shape {keyval.shape}")
-        # query.shapetorch.Size([B, 31, 256])
-        # keyval.shapetorch.Size([B, 65, 256])
+        query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
         query_out = self._tf_decoder(query, keyval)
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)

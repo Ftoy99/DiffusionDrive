@@ -14,7 +14,9 @@ from navsim.agents.abstract_agent import AbstractAgent
 from navsim.common.dataclasses import SceneFilter
 from navsim.common.dataloader import SceneLoader
 from test.visualization import draw_bev, draw_semantic
+import os
 
+CHECKPOINT_ROOT = "/mnt/ds/navsim-main/exp"
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -38,28 +40,38 @@ def index():
 @app.route("/scenarios")
 def scenarios():
     if scene_loader is None:
-        return "<p>No SceneLoader</p>"
+        return '<option value="">No scenarios available</option>'
 
-    options = "\n".join(
+    return "".join(
         f'<option value="{token}">{token}</option>'
         for token in scene_loader.tokens
     )
 
-    return f"""
-    <label for="scenario-select">Select a scenario:</label>
-    <select id="scenario-select"
-            name="scenario"
-            hx-get="/scenario"
-            hx-target="#viewer"
-            hx-trigger="change"
-            hx-include="#scenario-select">
-        <option value="">-- choose --</option>
-        {options}
-    </select>
-    <div id="scenario-details"></div>
-    """
+@app.route("/models")
+def models():
+    options = []
+    for root, dirs, files in os.walk(CHECKPOINT_ROOT):
+        for f in files:
+            if f.endswith(".ckpt"):  # checkpoint files
+                full_path = os.path.join(root, f)
+                rel_path = os.path.relpath(full_path, CHECKPOINT_ROOT)  # relative path
+                options.append(f'<option value="{full_path}">{rel_path}</option>')
+
+    if not options:
+        return '<option value="">No models found</option>'
+
+    return "\n".join(options)
 
 
+@app.route("/dataset")
+def dataset():
+    pass
+    return render_template("dataset_content.html")
+
+@app.route("/inference")
+def inference():
+    pass
+    return render_template("inference_content.html")
 
 @app.route("/scenario")
 def scenario():
@@ -77,7 +89,7 @@ def scenario():
     scene = scene_loader.get_scene_from_token(token)
     agent_input = scene_loader.get_agent_input_from_token(token)
 
-    features = agent.get_feature_builders()[0].compute_features(agent_input,scene)
+    features = agent.get_feature_builders()[0].compute_features(agent_input)
     targets = agent.get_target_builders()[0].compute_targets(scene)
     return render_template("viewer.html")
 
