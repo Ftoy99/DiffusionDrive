@@ -26,7 +26,8 @@ CONFIG_NAME = "default_training"
 # Global var to hold loader
 scene_loader: Optional[SceneLoader] = None
 agent: Optional[AbstractAgent] = None
-
+options = []
+outputs = None
 
 features = None
 targets = None
@@ -49,19 +50,24 @@ def scenarios():
 
 @app.route("/models")
 def models():
-    options = []
-    for root, dirs, files in os.walk(CHECKPOINT_ROOT):
-        for f in files:
-            if f.endswith(".ckpt"):  # checkpoint files
-                full_path = os.path.join(root, f)
-                rel_path = os.path.relpath(full_path, CHECKPOINT_ROOT)  # relative path
-                options.append(f'<option value="{full_path}">{rel_path}</option>')
+    global options
+    if not options:
+        for root, dirs, files in os.walk(CHECKPOINT_ROOT):
+            for f in files:
+                if f.endswith(".ckpt"):  # checkpoint files
+                    full_path = os.path.join(root, f)
+                    rel_path = os.path.relpath(full_path, CHECKPOINT_ROOT)  # relative path
+                    options.append(f'<option value="{full_path}">{rel_path}</option>')
 
     if not options:
         return '<option value="">No models found</option>'
 
     return "\n".join(options)
 
+@app.route("/inference_results")
+def inference_results():
+    pass
+    return render_template("inference_results.html")
 
 @app.route("/dataset")
 def dataset():
@@ -151,6 +157,27 @@ def lidar_png():
     buffer.seek(0)
     return send_file(buffer, mimetype='image/png')
 
+@app.route("/semantic-result")
+def semantic_result():
+    img_tag = f'<img src="/semantic-result-png?_={time.time()}" class="w-full h-32 object-contain">'
+    return img_tag
+
+@app.route("/semantic-result-png")
+def semantic_result_png():
+    global outputs
+    if outputs is None:
+        return "<div>No features initialized</div>"
+
+    img_tensor = outputs["bev_semantic_map"].squeeze(0).argmax(dim=0)
+    ego_trajectory = outputs["trajectory"].squeeze(0)
+    img_array = draw_semantic(img_tensor,ego_trajectory,features["trajectories"])
+
+    pil_img = Image.fromarray(img_array)
+    buffer = io.BytesIO()
+    pil_img.save(buffer, format='PNG')
+    buffer.seek(0)
+    return send_file(buffer, mimetype='image/png')
+
 @app.route("/semantic")
 def semantic():
     img_tag = f'<img src="/semantic_png?_={time.time()}" class="w-full h-32 object-contain">'
@@ -175,18 +202,22 @@ def semantic_png():
 def run_inference():
     global scene_loader
     global agent
+    global features
+    global targets
+    global outputs
+    feat_copy = features
     model = request.form.get("model")
-
     if agent.checkpoint_path is not model:
         logger.info(f"Loading from pretrained")
         agent.checkpoint_path = model
         agent.initialize()
+        agent.eval()
 
-    scenario = request.form.get("scenario")
+    feat_copy = {k: v.unsqueeze(0) for k, v in feat_copy.items()} # Add batch dim
+    outputs = agent.forward(feat_copy)
+    return render_template("inference_results.html")
 
-    agent_input = scene_loader.get_agent_input_from_token(scenario)
-    trajectory = agent.compute_trajectory(agent_input)
-    print(trajectory)
+
 
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(cfg: DictConfig):
