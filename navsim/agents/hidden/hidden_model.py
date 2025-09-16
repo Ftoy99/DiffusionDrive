@@ -163,7 +163,7 @@ class HiddenModel(nn.Module):
         bev_feature = self._bev_downscale(bev_feature).flatten(-2, -1)
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
-
+        traj_mask = (trajectories.abs().sum(dim=-1).sum(dim=-1) == 0)
         #Trajectories encoding
         trajectories_encoding = self.traj_gru_projection(trajectories)
         B,N,T,D = trajectories_encoding.shape
@@ -203,11 +203,19 @@ class HiddenModel(nn.Module):
         else:
             gaze_query = None
 
+
+
         #Trajectories
         keyval = torch.concatenate([keyval,trajectories_encoding], dim=1)
+        # prepend zeros for the original keyval part
+        pad_mask = torch.cat([
+            torch.zeros(batch_size, keyval.size(1) - trajectories_encoding.size(1),
+                        dtype=torch.bool, device=keyval.device),
+            traj_mask
+        ], dim=1)  # [B, S+N]
 
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
-        query_out = self._tf_decoder(query, keyval)
+        query_out = self._tf_decoder(query, keyval,memory_key_padding_mask=pad_mask)
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
