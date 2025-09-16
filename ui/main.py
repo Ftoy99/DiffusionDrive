@@ -171,6 +171,23 @@ def semantic_png():
     buffer.seek(0)
     return send_file(buffer, mimetype='image/png')
 
+@app.route("/run_inference", methods=["POST"])
+def run_inference():
+    global scene_loader
+    global agent
+    model = request.form.get("model")
+
+    if agent.checkpoint_path is not model:
+        logger.info(f"Loading from pretrained")
+        agent.checkpoint_path = model
+        agent.initialize()
+
+    scenario = request.form.get("scenario")
+
+    agent_input = scene_loader.get_agent_input_from_token(scenario)
+    trajectory = agent.compute_trajectory(agent_input)
+    print(trajectory)
+
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(cfg: DictConfig):
     global scene_loader

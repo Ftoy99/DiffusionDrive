@@ -51,18 +51,18 @@ class HiddenAgent(AbstractAgent):
         self._config = config
         self._lr = lr
 
-        self._checkpoint_path = checkpoint_path
+        self.checkpoint_path = checkpoint_path
         self._hidden_model = HiddenModel(config)
         self.init_from_pretrained()
 
     def init_from_pretrained(self):
         # import ipdb; ipdb.set_trace()
-        if self._checkpoint_path:
-            print(f"Loading from pretrained {self._checkpoint_path}")
+        if self.checkpoint_path:
+            print(f"Loading from pretrained {self.checkpoint_path}")
             if torch.cuda.is_available():
-                checkpoint = torch.load(self._checkpoint_path)
+                checkpoint = torch.load(self.checkpoint_path)
             else:
-                checkpoint = torch.load(self._checkpoint_path, map_location=torch.device('cpu'))
+                checkpoint = torch.load(self.checkpoint_path, map_location=torch.device('cpu'))
 
             state_dict = checkpoint['state_dict']
 
@@ -86,9 +86,9 @@ class HiddenAgent(AbstractAgent):
     def initialize(self) -> None:
         """Inherited, see superclass."""
         if torch.cuda.is_available():
-            state_dict: Dict[str, Any] = torch.load(self._checkpoint_path)["state_dict"]
+            state_dict: Dict[str, Any] = torch.load(self.checkpoint_path)["state_dict"]
         else:
-            state_dict: Dict[str, Any] = torch.load(self._checkpoint_path, map_location=torch.device("cpu"))[
+            state_dict: Dict[str, Any] = torch.load(self.checkpoint_path, map_location=torch.device("cpu"))[
                 "state_dict"
             ]
         self.load_state_dict({k.replace("agent.", ""): v for k, v in state_dict.items()})

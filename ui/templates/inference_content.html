@@ -28,11 +28,12 @@
       <option value="">-- choose --</option>
     </select>
 
-    <button class="p-2 mt-auto bg-blue-600 rounded hover:bg-blue-700"
-            hx-post="/run_inference" hx-target="#viewer"
-            hx-vals='{"model": "#model-select.value", "scenario": "#scenario-select.value"}'>
-      Run Inference
-    </button>
+  <button class="p-2 mt-auto bg-blue-600 rounded hover:bg-blue-700"
+          hx-post="/run_inference"
+          hx-target="#viewer"
+          hx-include="#model-select,#scenario-select">
+    Run Inference
+  </button>
   </div>
 
   <!-- Main viewer -->
