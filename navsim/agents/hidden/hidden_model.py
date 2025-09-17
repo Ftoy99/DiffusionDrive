@@ -1,4 +1,3 @@
-from typing import Dict
 import numpy as np
 import torch
 import torch.nn as nn
@@ -132,7 +131,7 @@ class HiddenModel(nn.Module):
         #     print("Training without gaze")
         # True no gaze
         # False gaze
-        gaze_flag = True
+        gaze_flag = False
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
