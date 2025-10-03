@@ -128,7 +128,7 @@ class HiddenModel(nn.Module):
             nn.Linear(6, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
-            RMSNorm(256)
+            nn.LayerNorm(256, eps=1e-8)
         )
         self.traj_gate = nn.Parameter(torch.tensor(0.5))
 
