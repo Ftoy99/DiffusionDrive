@@ -121,8 +121,13 @@ class HiddenModel(nn.Module):
 
         # Trajectory encoding
         # self.traj_projection = nn.Linear(2, 64) # [[x,y],[x,y],[x,y],[x,y]]
-        self.traj_projection = nn.Linear(6, 256) # [[x,y],[x,y],[x,y],[x,y]]
-        # self.traj_gru = nn.GRU(64, config.tf_d_model, batch_first=True)
+        self.traj_projection = nn.Sequential(
+            nn.Linear(6, 256),
+            nn.ReLU(),
+            nn.LayerNorm(256),
+            nn.Linear(256, 256),
+            nn.LayerNorm(256)
+        )
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
@@ -172,31 +177,17 @@ class HiddenModel(nn.Module):
         disp_flat = disp.reshape(disp.shape[0], disp.shape[1], -1)  # (B, N, 2*(T-1))
         trajectories_encoding = self.traj_projection(disp_flat)
 
-
-        # trajectories_encoding = self.traj_gru_projection(trajectories)
-        # B, N, T, D = trajectories_encoding.shape
-        # trajectories_encoding = trajectories_encoding.view(B * N, T, D)
-        # all_step, last_step = self.traj_gru(trajectories_encoding)
-        # trajectories_encoding = last_step.squeeze(0).view(B, N, self._config.tf_d_model)
-        # trajectories_encoding += self._trajectories_embedding.weight[None, ...]
-
-        # bev_feature (B,64,256) | status_encoding (B,256)
-        # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
         keyval = torch.concatenate([bev_feature, status_encoding[:, None]], dim=1)  # B 65 256
         keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
+
         # Add trajectory to keyval
-
-        # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
-
         concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
                                                                              concat_cross_bev_shape[1])
 
         # upsample to the same shape as bev_feature_upscale
-
         concat_cross_bev = F.interpolate(concat_cross_bev, size=bev_spatial_shape, mode='bilinear', align_corners=False)
-        # concat concat_cross_bev and cross_bev_feature
+
         cross_bev_feature = torch.cat([concat_cross_bev, cross_bev_feature], dim=1)
-        # print(f"Type for things {cross_bev_feature.flatten(-2, -1).permute(0, 2, 1).shape}")
         cross_bev_feature = self.bev_proj(cross_bev_feature.flatten(-2, -1).permute(0, 2, 1))
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
