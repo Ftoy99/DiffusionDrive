@@ -120,7 +120,8 @@ class HiddenModel(nn.Module):
         ])
 
         # Trajectory encoding
-        self.traj_projection = nn.Linear(2, 64) # [[x,y],[x,y],[x,y],[x,y]]
+        # self.traj_projection = nn.Linear(2, 64) # [[x,y],[x,y],[x,y],[x,y]]
+        self.traj_projection = nn.Linear(6, 256) # [[x,y],[x,y],[x,y],[x,y]]
         # self.traj_gru = nn.GRU(64, config.tf_d_model, batch_first=True)
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
@@ -164,15 +165,14 @@ class HiddenModel(nn.Module):
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
 
-        print(trajectories)
-
         traj_mask = (trajectories.abs().sum(dim=-1).sum(dim=-1) == 0)
         # Trajectories encoding
 
         disp = trajectories[:, :, 1:, :] - trajectories[:, :, :-1, :]  # (B, N, T-1, 2)
         disp_flat = disp.reshape(disp.shape[0], disp.shape[1], -1)  # (B, N, 2*(T-1))
-
         print(disp_flat.shape)
+        trajectories_encoding = self.traj_projection(disp_flat)
+        print(trajectories_encoding.shape)
 
 
         # trajectories_encoding = self.traj_gru_projection(trajectories)
