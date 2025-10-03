@@ -168,12 +168,19 @@ class HiddenModel(nn.Module):
 
         traj_mask = (trajectories.abs().sum(dim=-1).sum(dim=-1) == 0)
         # Trajectories encoding
-        trajectories_encoding = self.traj_gru_projection(trajectories)
-        B, N, T, D = trajectories_encoding.shape
-        trajectories_encoding = trajectories_encoding.view(B * N, T, D)
-        all_step, last_step = self.traj_gru(trajectories_encoding)
-        trajectories_encoding = last_step.squeeze(0).view(B, N, self._config.tf_d_model)
-        trajectories_encoding += self._trajectories_embedding.weight[None, ...]
+
+        disp = trajectories[:, :, 1:, :] - trajectories[:, :, :-1, :]  # (B, N, T-1, 2)
+        disp_flat = disp.reshape(disp.shape[0], disp.shape[1], -1)  # (B, N, 2*(T-1))
+
+        print(disp_flat.shape)
+
+
+        # trajectories_encoding = self.traj_gru_projection(trajectories)
+        # B, N, T, D = trajectories_encoding.shape
+        # trajectories_encoding = trajectories_encoding.view(B * N, T, D)
+        # all_step, last_step = self.traj_gru(trajectories_encoding)
+        # trajectories_encoding = last_step.squeeze(0).view(B, N, self._config.tf_d_model)
+        # trajectories_encoding += self._trajectories_embedding.weight[None, ...]
 
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
