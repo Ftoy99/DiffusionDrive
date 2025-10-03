@@ -124,10 +124,10 @@ class HiddenModel(nn.Module):
         self.traj_projection = nn.Sequential(
             nn.Linear(6, 256),
             nn.ReLU(),
-            nn.LayerNorm(256),
             nn.Linear(256, 256),
-            nn.LayerNorm(256)
+            nn.RMSNorm(256)
         )
+        self.traj_gate = nn.Parameter(torch.tensor(0.5))
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
@@ -176,6 +176,7 @@ class HiddenModel(nn.Module):
         disp = trajectories[:, :, 1:, :] - trajectories[:, :, :-1, :]  # (B, N, T-1, 2)
         disp_flat = disp.reshape(disp.shape[0], disp.shape[1], -1)  # (B, N, 2*(T-1))
         trajectories_encoding = self.traj_projection(disp_flat)
+        trajectories_encoding = self.traj_gate * trajectories_encoding
 
         keyval = torch.concatenate([bev_feature, status_encoding[:, None]], dim=1)  # B 65 256
         keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
