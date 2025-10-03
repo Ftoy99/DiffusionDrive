@@ -39,7 +39,7 @@ class HiddenModel(nn.Module):
         self._keyval_embedding = nn.Embedding(8 ** 2 + 1, config.tf_d_model)  # 65 x D
         nn.init.xavier_uniform_(self._keyval_embedding.weight)
 
-        self._trajectories_embedding = nn.Embedding(15, config.tf_d_model)  #TODO add in config # 15 x D
+        self._trajectories_embedding = nn.Embedding(15, config.tf_d_model)  # TODO add in config # 15 x D
         nn.init.xavier_uniform_(self._trajectories_embedding.weight)
 
         self._query_embedding = nn.Embedding(sum(self._query_splits), config.tf_d_model)  # 30 x D
@@ -119,19 +119,19 @@ class HiddenModel(nn.Module):
             nn.Conv2d(512, config.tf_d_model, 1),  # for 512x5x5
         ])
 
-        #Trajectory encoding
-        self.traj_gru_projection = nn.Linear(2,64)
-        self.traj_gru = nn.GRU(64,config.tf_d_model,batch_first=True)
+        # Trajectory encoding
+        self.traj_projection = nn.Linear(2, 64) # [[x,y],[x,y],[x,y],[x,y]]
+        # self.traj_gru = nn.GRU(64, config.tf_d_model, batch_first=True)
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
         drop_prob = 0.15
         gaze_flag = torch.rand(()) < drop_prob
-        # if gaze_flag:
-        #     print("Training without gaze")
+        if gaze_flag:
+            print("Training without gaze")
         # True no gaze
         # False gaze
-        gaze_flag = False
+        # gaze_flag = False
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
@@ -144,7 +144,8 @@ class HiddenModel(nn.Module):
         # print(f"Shape of gaze before processing {gaze_feature.shape}")
 
         if not gaze_flag:
-            gaze_feature_backbone = self._gaze_backbone(gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
+            gaze_feature_backbone = self._gaze_backbone(
+                gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
             tokens = []
             for i, feat in enumerate(gaze_feature_backbone[-3:]):
                 feat = self.gaze_channel_align[i](feat)  # fix channels
@@ -163,21 +164,22 @@ class HiddenModel(nn.Module):
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
 
+        print(trajectories)
 
         traj_mask = (trajectories.abs().sum(dim=-1).sum(dim=-1) == 0)
-        #Trajectories encoding
+        # Trajectories encoding
         trajectories_encoding = self.traj_gru_projection(trajectories)
-        B,N,T,D = trajectories_encoding.shape
-        trajectories_encoding = trajectories_encoding.view(B*N,T,D)
-        all_step , last_step = self.traj_gru(trajectories_encoding)
-        trajectories_encoding = last_step.squeeze(0).view(B,N,self._config.tf_d_model)
+        B, N, T, D = trajectories_encoding.shape
+        trajectories_encoding = trajectories_encoding.view(B * N, T, D)
+        all_step, last_step = self.traj_gru(trajectories_encoding)
+        trajectories_encoding = last_step.squeeze(0).view(B, N, self._config.tf_d_model)
         trajectories_encoding += self._trajectories_embedding.weight[None, ...]
 
         # bev_feature (B,64,256) | status_encoding (B,256)
         # print(f"bev_feature shape {bev_feature.shape} ,status_encoding shape {status_encoding.shape}")
-        keyval = torch.concatenate([bev_feature,status_encoding[:, None]], dim=1)  # B 65 256
+        keyval = torch.concatenate([bev_feature, status_encoding[:, None]], dim=1)  # B 65 256
         keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
-        #Add trajectory to keyval
+        # Add trajectory to keyval
 
         # print(f"Key Val after bev_feature and status encoding concat {keyval.shape}")
 
@@ -195,7 +197,8 @@ class HiddenModel(nn.Module):
                                                                                  bev_spatial_shape[1])
 
         if not gaze_flag:
-            qformer_q = self._gaze_embedding.weight.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1, -1)  # [64, 5, 256]
+            qformer_q = self._gaze_embedding.weight.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1,
+                                                                        -1)  # [64, 5, 256]
             gaze_query = self._qformer(
                 query_embeds=qformer_q,
                 encoder_hidden_states=gaze_tokens_flat,
@@ -204,10 +207,8 @@ class HiddenModel(nn.Module):
         else:
             gaze_query = None
 
-
-
-        #Trajectories
-        keyval = torch.concatenate([keyval,trajectories_encoding], dim=1)
+        # Trajectories
+        keyval = torch.concatenate([keyval, trajectories_encoding], dim=1)
         # prepend zeros for the original keyval part
         pad_mask = torch.cat([
             torch.zeros(batch_size, keyval.size(1) - trajectories_encoding.size(1),
@@ -216,7 +217,7 @@ class HiddenModel(nn.Module):
         ], dim=1)  # [B, S+N]
 
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
-        query_out = self._tf_decoder(query, keyval,memory_key_padding_mask=pad_mask)
+        query_out = self._tf_decoder(query, keyval, memory_key_padding_mask=pad_mask)
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
