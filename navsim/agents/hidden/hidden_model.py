@@ -3,8 +3,6 @@ import torch
 import torch.nn as nn
 import copy
 
-from torch.nn import RMSNorm
-
 from navsim.agents.hidden.hidden_config import HiddenConfig
 from navsim.agents.hidden.transfuser_backbone import TransfuserBackbone
 from navsim.agents.hidden.hidden_features import BoundingBox2DIndex
