@@ -170,9 +170,7 @@ class HiddenModel(nn.Module):
 
         disp = trajectories[:, :, 1:, :] - trajectories[:, :, :-1, :]  # (B, N, T-1, 2)
         disp_flat = disp.reshape(disp.shape[0], disp.shape[1], -1)  # (B, N, 2*(T-1))
-        print(disp_flat.shape)
         trajectories_encoding = self.traj_projection(disp_flat)
-        print(trajectories_encoding.shape)
 
 
         # trajectories_encoding = self.traj_gru_projection(trajectories)
