@@ -232,11 +232,20 @@ class HiddenModel(nn.Module):
         else:
             gaze_query = None
 
+        key_mask = torch.zeros(
+            (batch_size, keyval.size(1)),
+            dtype=torch.bool,
+            device=keyval.device
+        )
+
+        # copy over traj_mask into the correct slice
+        key_mask[:, :traj_mask.size(1)] = traj_mask
+
         traj_attended, _ = self.traj_mha(
             query=trajectories_encoding,
             key=keyval,
             value=keyval,
-            key_padding_mask=traj_mask
+            key_padding_mask=key_mask  # now (B, 97)
         )
         # residual update, keep scale small
         trajectories_encoding = trajectories_encoding + 0.5 * traj_attended
