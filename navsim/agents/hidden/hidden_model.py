@@ -18,6 +18,18 @@ import timm
 from transformers import Blip2QFormerModel, Blip2QFormerConfig
 
 
+class RMSNorm(nn.Module):
+    def __init__(self, d, eps: float = 1e-8):
+        super().__init__()
+        self.eps = eps
+        self.scale = nn.Parameter(torch.ones(d))
+
+    def forward(self, x):
+        # x: (..., d)
+        rms = x.pow(2).mean(dim=-1, keepdim=True).sqrt().add(self.eps)
+        return x / rms * self.scale
+
+
 class HiddenModel(nn.Module):
     """Torch module for Transfuser."""
 
@@ -120,15 +132,21 @@ class HiddenModel(nn.Module):
             nn.Conv2d(512, config.tf_d_model, 1),  # for 512x5x5
         ])
 
-        # Trajectory encoding
-        # self.traj_projection = nn.Linear(2, 64) # [[x,y],[x,y],[x,y],[x,y]]
+        # trajectory projection
         self.traj_projection = nn.Sequential(
             nn.Linear(6, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
-            nn.LayerNorm(256, eps=1e-8)
+            nn.LayerNorm(256, eps=1e-8),  # or RMSNorm if you prefer
         )
         self.traj_gate = nn.Parameter(torch.tensor(0.5))
+
+        # agent id embedding (for N possible agents)
+        self._trajectories_embedding = nn.Embedding(config.num_bounding_boxes, config.tf_d_model)
+        nn.init.xavier_uniform_(self._trajectories_embedding.weight)
+
+        # cross-attention for traj tokens
+        self.traj_mha = nn.MultiheadAttention(embed_dim=config.tf_d_model, num_heads=8, batch_first=True)
 
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
@@ -171,18 +189,30 @@ class HiddenModel(nn.Module):
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
 
-        traj_mask = (trajectories.abs().sum(dim=-1).sum(dim=-1) == 0)
-        # Trajectories encoding
+        #traejctories
+        traj_mask = (trajectories.abs().sum(dim=-1).sum(dim=-1) == 0)  # (B,N) True if empty
 
-        disp = trajectories[:, :, 1:, :] - trajectories[:, :, :-1, :]  # (B, N, T-1, 2)
-        disp_flat = disp.reshape(disp.shape[0], disp.shape[1], -1)  # (B, N, 2*(T-1))
-        trajectories_encoding = self.traj_projection(disp_flat)
+        # compute displacements
+        disp = trajectories[:, :, 1:, :] - trajectories[:, :, :-1, :]  # (B,N,T-1,2)
+        disp_flat = disp.reshape(disp.shape[0], disp.shape[1], -1)  # (B,N,2*(T-1))
+
+        # project
+        trajectories_encoding = self.traj_projection(disp_flat)  # (B,N,D)
+
+        # mask out empties (avoid fake embeddings from bias)
+        trajectories_encoding = trajectories_encoding.masked_fill(traj_mask[..., None], 0.0)
+
+        # add learnable agent id embeddings
+        agent_ids = torch.arange(trajectories_encoding.size(1), device=trajectories_encoding.device)
+        agent_emb = self._trajectories_embedding(agent_ids)[None, ...].expand_as(trajectories_encoding)
+        trajectories_encoding = trajectories_encoding + agent_emb
+
+        # gating
         trajectories_encoding = self.traj_gate * trajectories_encoding
 
         keyval = torch.concatenate([bev_feature, status_encoding[:, None]], dim=1)  # B 65 256
         keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
 
-        # Add trajectory to keyval
         concat_cross_bev = keyval[:, :-1].permute(0, 2, 1).contiguous().view(batch_size, -1, concat_cross_bev_shape[0],
                                                                              concat_cross_bev_shape[1])
 
@@ -206,13 +236,25 @@ class HiddenModel(nn.Module):
             gaze_query = None
 
         # Trajectories
-        keyval = torch.concatenate([keyval, trajectories_encoding], dim=1)
-        # prepend zeros for the original keyval part
+        traj_attended, _ = self.traj_mha(
+            query=trajectories_encoding, key=keyval, value=keyval
+        )
+
+        # residual update, keep scale small
+        trajectories_encoding = trajectories_encoding + 0.5 * traj_attended
+
+        # zero out attended tokens for empty trajs again
+        trajectories_encoding = trajectories_encoding.masked_fill(traj_mask[..., None], 0.0)
+
+        # append to keyval
+        keyval = torch.cat([keyval, trajectories_encoding], dim=1)
+
+        # update pad_mask accordingly
         pad_mask = torch.cat([
             torch.zeros(batch_size, keyval.size(1) - trajectories_encoding.size(1),
                         dtype=torch.bool, device=keyval.device),
             traj_mask
-        ], dim=1)  # [B, S+N]
+        ], dim=1)
 
         query = self._query_embedding.weight[None, ...].repeat(batch_size, 1, 1)
         query_out = self._tf_decoder(query, keyval, memory_key_padding_mask=pad_mask)
