@@ -238,14 +238,14 @@ class HiddenModel(nn.Module):
             device=keyval.device
         )
 
-        # copy over traj_mask into the correct slice
-        key_mask[:, :traj_mask.size(1)] = traj_mask
+        # apply traj_mask to the last positions
+        key_mask[:, -traj_mask.size(1):] = traj_mask
 
         traj_attended, _ = self.traj_mha(
             query=trajectories_encoding,
             key=keyval,
             value=keyval,
-            key_padding_mask=key_mask  # now (B, 97)
+            key_padding_mask=key_mask  # (B, 97), aligned with keys
         )
         # residual update, keep scale small
         trajectories_encoding = trajectories_encoding + 0.5 * traj_attended
