@@ -189,26 +189,23 @@ class HiddenModel(nn.Module):
         bev_feature = bev_feature.permute(0, 2, 1)
         status_encoding = self._status_encoding(status_feature)
 
-        #traejctories
+        # traejectories
         traj_mask = (trajectories.abs().sum(dim=-1).sum(dim=-1) == 0)  # (B,N) True if empty
 
-        # compute displacements
-        disp = trajectories[:, :, 1:, :] - trajectories[:, :, :-1, :]  # (B,N,T-1,2)
-        disp_flat = disp.reshape(disp.shape[0], disp.shape[1], -1)  # (B,N,2*(T-1))
+        # 1) compute displacements
+        disp = trajectories[:, :, 1:, :] - trajectories[:, :, :-1, :]
+        disp_flat = disp.reshape(disp.shape[0], disp.shape[1], -1)
 
-        # project
-        trajectories_encoding = self.traj_projection(disp_flat)  # (B,N,D)
+        # 2) project through MLP
+        trajectories_encoding = self.traj_projection(disp_flat)
 
-        # mask out empties (avoid fake embeddings from bias)
-        trajectories_encoding = trajectories_encoding.masked_fill(traj_mask[..., None], 0.0)
-
-        # add learnable agent id embeddings
+        # 3) add agent embedding + gate
         agent_ids = torch.arange(trajectories_encoding.size(1), device=trajectories_encoding.device)
         agent_emb = self._trajectories_embedding(agent_ids)[None, ...].expand_as(trajectories_encoding)
-        trajectories_encoding = trajectories_encoding + agent_emb
+        trajectories_encoding = self.traj_gate * (trajectories_encoding + agent_emb)
 
-        # gating
-        trajectories_encoding = self.traj_gate * trajectories_encoding
+        # 4) mask empty trajectories **last**
+        trajectories_encoding = trajectories_encoding.masked_fill(traj_mask[..., None], 0.0)
 
         keyval = torch.concatenate([bev_feature, status_encoding[:, None]], dim=1)  # B 65 256
         keyval += self._keyval_embedding.weight[None, ...]  # B 65 256 We add the keyval_embd everywhere along dim 1
@@ -235,11 +232,12 @@ class HiddenModel(nn.Module):
         else:
             gaze_query = None
 
-        # Trajectories
         traj_attended, _ = self.traj_mha(
-            query=trajectories_encoding, key=keyval, value=keyval
+            query=trajectories_encoding,
+            key=keyval,
+            value=keyval,
+            key_padding_mask=traj_mask
         )
-
         # residual update, keep scale small
         trajectories_encoding = trajectories_encoding + 0.5 * traj_attended
 

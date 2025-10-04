@@ -161,6 +161,12 @@ def main(cfg: DictConfig) -> None:
         Finished running evaluation.
             Number of successful scenarios: {num_sucessful_scenarios}.
             Number of failed scenarios: {num_failed_scenarios}.
+            Final average score of valid results: {pdm_score_df['no_at_fault_collisions'].mean()}.
+            Final average score of valid results: {pdm_score_df['drivable_area_compliance'].mean()}.
+            Final average score of valid results: {pdm_score_df['ego_progress'].mean()}.
+            Final average score of valid results: {pdm_score_df['time_to_collision_within_bound'].mean()}.
+            Final average score of valid results: {pdm_score_df['comfort'].mean()}.
+            Final average score of valid results: {pdm_score_df['driving_direction_compliance'].mean()}.
             Final average score of valid results: {pdm_score_df['score'].mean()}.
             Results are stored in: {save_path / f"{timestamp}.csv"}.
         """
