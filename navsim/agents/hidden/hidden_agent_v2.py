@@ -1,7 +1,6 @@
 from typing import Any, List, Dict, Optional, Union
 
 import torch
-import torch.nn as nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 import pytorch_lightning as pl
@@ -9,7 +8,7 @@ import pytorch_lightning as pl
 from navsim.agents.abstract_agent import AbstractAgent
 from navsim.agents.hidden.hidden_config import HiddenConfig
 
-from navsim.agents.hidden.hidden_model_traj import HiddenModel
+from navsim.agents.hidden.hidden_model_gaze import HiddenModel
 
 from navsim.agents.hidden.hidden_callback import HiddenCallback
 from navsim.agents.hidden.hidden_loss import hidden_loss

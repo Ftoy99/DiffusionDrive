@@ -1,4 +1,4 @@
-_target_: navsim.agents.hidden.hidden_agent_v2.HiddenAgent
+_target_: navsim.agents.hidden.hidden_agent_v3.HiddenAgent
 _convert_: 'all'
 
 config:
