@@ -132,22 +132,6 @@ class HiddenModel(nn.Module):
             nn.Conv2d(512, config.tf_d_model, 1),  # for 512x5x5
         ])
 
-        # trajectory projection
-        self.traj_projection = nn.Sequential(
-            nn.Linear(6, 256),
-            nn.ReLU(),
-            nn.Linear(256, 256),
-            nn.LayerNorm(256, eps=1e-8),  # or RMSNorm if you prefer
-        )
-        self.traj_gate = nn.Parameter(torch.tensor(0.5))
-
-        # agent id embedding (for N possible agents)
-        self._trajectories_embedding = nn.Embedding(config.num_bounding_boxes, config.tf_d_model)
-        nn.init.xavier_uniform_(self._trajectories_embedding.weight)
-
-        # cross-attention for traj tokens
-        self.traj_mha = nn.MultiheadAttention(embed_dim=config.tf_d_model, num_heads=8, batch_first=True)
-
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
         drop_prob = 0.15
