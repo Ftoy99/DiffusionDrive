@@ -419,7 +419,6 @@ class Scene:
         layers = [TrackedObjectType.VEHICLE, TrackedObjectType.PEDESTRIAN, TrackedObjectType.BICYCLE]
         start_idx = self.scene_metadata.num_history_frames
 
-        #Initialize objects to track for next frame
         # Initialize objects to track for next frame
         anns = self.frames[start_idx].annotations
         distances = []
@@ -443,24 +442,34 @@ class Scene:
             trajectories[tracked_id] = []  # start with first box
             tracked_ids.add(tracked_id)
 
-        for frame_idx in range(start_idx, start_idx + 4):
+        for frame_idx in range(start_idx, start_idx + 8+1):
             anns = self.frames[frame_idx].annotations
             for name_value, box_value, tracked_id in zip(anns.names, anns.boxes,
                                                          anns.track_tokens):
                 if tracked_id not in tracked_ids:
                     continue
-                trajectories[tracked_id].append((box_value[0], box_value[1]))
+                trajectories[tracked_id].append((box_value[0], box_value[1],box_value[6]))
 
-        # Keep only agents with exactly 4 future steps
-        trajectories = {k: v for k, v in trajectories.items() if len(v) == 4}
+        # Keep only agents with exactly 8 future steps
+        trajectories = {k: v for k, v in trajectories.items() if len(v) == 9}
+        trajs = [v for v in trajectories.values()]
 
-        # Keep only agents with exactly 4 future steps
-        trajs = [v for v in trajectories.values() if len(v) == 4]
+        for i, traj in enumerate(trajs):
+            local_ego_poses = convert_absolute_to_relative_se2_array(
+                StateSE2(*traj[0]), np.array(traj[1:], dtype=np.float64)
+            )
+            trajs[i] = Trajectory(
+                local_ego_poses,
+                TrajectorySampling(
+                    num_poses=len(local_ego_poses),
+                    interval_length=NAVSIM_INTERVAL_LENGTH,
+                ),
+            ).poses
 
         # Pad to 15 agents if fewer
         while len(trajs) < 15:
-            trajs.append([(0.0, 0.0)] * 4)
-        trajectories = torch.tensor(trajs, dtype=torch.float32)  # (15, 4, 2)
+            trajs.append([(0.0, 0.0,0.0)] * 8)
+        trajectories = torch.tensor(trajs, dtype=torch.float32)  # (15, 8, 3)
         return AgentInput(ego_statuses, cameras, lidars,trajectories)
 
     @classmethod
