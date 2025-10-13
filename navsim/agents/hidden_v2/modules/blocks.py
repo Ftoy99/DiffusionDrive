@@ -90,6 +90,9 @@ class GridSampleCrossBEVAttention(nn.Module):
 
         value = self.value_proj(bev_feature)
         grid = normalized_trajectory.view(bs,num_agents, num_queries, num_points, 2)
+
+        print(f"grid shape {grid.shape}")
+        print(f"value shape {value.shape}")
         # Sample features
         sampled_features = torch.nn.functional.grid_sample(
             value,
