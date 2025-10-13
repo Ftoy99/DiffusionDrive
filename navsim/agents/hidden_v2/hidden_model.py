@@ -688,12 +688,13 @@ class TrajectoryHead(nn.Module):
         for k in roll_timesteps[:]:
             x_boxes = torch.clamp(img, min=-1, max=1)
             noisy_traj_points = self.denorm_odo(x_boxes)
-
+            ego_fut_mode = noisy_traj_points.shape[2]
+            ego_fut_neighbours = noisy_traj_points.shape[1]
             # 2. proj noisy_traj_points to the query
             traj_pos_embed = gen_sineembed_for_position(noisy_traj_points, hidden_dim=64)
             traj_pos_embed = traj_pos_embed.flatten(-2)
             traj_feature = self.plan_anchor_encoder(traj_pos_embed)
-            traj_feature = traj_feature.view(bs, ego_fut_mode, -1)
+            traj_feature = traj_feature.view(bs, ego_fut_neighbours, ego_fut_mode, -1)
 
             timesteps = k
             if not torch.is_tensor(timesteps):
