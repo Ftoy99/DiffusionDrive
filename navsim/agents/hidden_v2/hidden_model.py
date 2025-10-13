@@ -653,7 +653,7 @@ class TrajectoryHead(nn.Module):
         mode_idx = mode_idx[..., None, None, None].repeat(1, 1, self._num_poses, 3)
         print(f"mode_idx {mode_idx.shape}")
         for x in poses_reg_list[-1]:
-            print(x)
+            print(x.shape)
         best_reg = torch.gather(poses_reg_list[-1], 1, mode_idx).squeeze(1)
         return {"trajectory": best_reg, "trajectory_loss": ret_traj_loss, "trajectory_loss_dict": trajectory_loss_dict}
 
