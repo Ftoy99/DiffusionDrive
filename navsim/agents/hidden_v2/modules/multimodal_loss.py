@@ -150,7 +150,10 @@ class LossComputer(nn.Module):
         dist = dist.mean(dim=-1)
         mode_idx = torch.argmin(dist, dim=-1)
         cls_target = mode_idx
-        mode_idx = mode_idx[...,None,None,None].repeat(1,1,ts,d)
+        print(f"mode idx {mode_idx.shape}")
+        print(f"ts {ts}")
+        print(f"d {d}")
+        mode_idx = mode_idx[...,None,None,None].repeat(1,1,ts,dd)
         best_reg = torch.gather(poses_reg, 1, mode_idx).squeeze(1)
         # import ipdb; ipdb.set_trace()
         # Calculate cls loss using focal loss
