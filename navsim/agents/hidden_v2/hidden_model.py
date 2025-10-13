@@ -145,7 +145,7 @@ class HiddenModel(nn.Module):
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
         trajectories: torch.Tensor = features["trajectories"]
-        print(f"trajectories.shape {trajectories.shape}")
+        # print(f"trajectories.shape {trajectories.shape}")
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]
@@ -416,12 +416,12 @@ class CustomTransformerDecoderLayer(nn.Module):
                 status_encoding,
                 gaze_query,
                 global_img=None):
-        print(f"Before cross_bev traj_feature {traj_feature.shape}")  # [64, 16, 20, 256]
-        print(f"Before cross_bev noisy_traj_points {noisy_traj_points.shape}")  # [64, 16, 20, 8, 2]
+        # print(f"Before cross_bev traj_feature {traj_feature.shape}")  # [64, 16, 20, 256]
+        # print(f"Before cross_bev noisy_traj_points {noisy_traj_points.shape}")  # [64, 16, 20, 8, 2]
         traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape)
-        print(f"traj_feature  after cross_bev_attention {traj_feature.shape}")  # [64, 16, 20, 256]
-        print(f"agents_query  after cross_bev_attention {agents_query.shape}")  # [[64, 30, 256]
-        print(f"ego_query  after cross_bev_attention {ego_query.shape}")  # [64, 1, 256]
+        # print(f"traj_feature  after cross_bev_attention {traj_feature.shape}")  # [64, 16, 20, 256]
+        # print(f"agents_query  after cross_bev_attention {agents_query.shape}")  # [[64, 30, 256]
+        # print(f"ego_query  after cross_bev_attention {ego_query.shape}")  # [64, 1, 256]
         bs, n_agent, n_step, c = traj_feature.shape
         traj_feature = traj_feature.reshape(bs, n_agent * n_step, c)
 
@@ -448,12 +448,12 @@ class CustomTransformerDecoderLayer(nn.Module):
 
         # 4.9 predict the offset & heading
         poses_reg, poses_cls = self.task_decoder(traj_feature)  # bs,20,8,3; bs,20
-        print(f"poses_reg {poses_reg.shape}")
-        print(f"poses_cls {poses_cls.shape}")
+        # print(f"poses_reg {poses_reg.shape}")
+        # print(f"poses_cls {poses_cls.shape}")
         poses_reg = poses_reg.view(bs, 16, 20, 8, 3)
         poses_cls = poses_cls.view(bs, 16, 20)
-        print(f"poses_reg {poses_reg.shape}")
-        print(f"poses_cls {poses_cls.shape}")
+        # print(f"poses_reg {poses_reg.shape}")
+        # print(f"poses_cls {poses_cls.shape}")
         poses_reg[..., :2] = poses_reg[..., :2] + noisy_traj_points
         poses_reg[..., StateSE2Index.HEADING] = poses_reg[..., StateSE2Index.HEADING].tanh() * np.pi
 
@@ -674,11 +674,11 @@ class TrajectoryHead(nn.Module):
 
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
-        print(f"plan_anchor.shape {plan_anchor.shape}")
+        # print(f"plan_anchor.shape {plan_anchor.shape}")
         img = self.norm_odo(plan_anchor)
-        print(f"img.shape {img.shape}")
+        # print(f"img.shape {img.shape}")
         noise = torch.randn(img.shape, device=device)
-        print(f"noise.shape {noise.shape}")
+        # print(f"noise.shape {noise.shape}")
         trunc_timesteps = torch.ones((bs,), device=device, dtype=torch.long) * 8
         img = self.diffusion_scheduler.add_noise(original_samples=img, noise=noise, timesteps=trunc_timesteps)
         ego_fut_mode = img.shape[1]
