@@ -583,19 +583,22 @@ class TrajectoryHead(nn.Module):
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
         print(f"plan_anchor.shape {plan_anchor.shape }")
         odo_info_fut = self.norm_odo(plan_anchor)
+        print(f"odo_info_fut.shape {odo_info_fut.shape }")
         timesteps = torch.randint(
             0, 50,
             (bs,), device=device
         )
         noise = torch.randn(odo_info_fut.shape, device=device)
+        print(f"noise.shape {noise.shape}")
         noisy_traj_points = self.diffusion_scheduler.add_noise(
             original_samples=odo_info_fut,
             noise=noise,
             timesteps=timesteps,
         ).float()
+        print(f"noisy_traj_points.shape {noisy_traj_points.shape}")
         noisy_traj_points = torch.clamp(noisy_traj_points, min=-1, max=1)
         noisy_traj_points = self.denorm_odo(noisy_traj_points)
-
+        print(f"noisy_traj_points.shape after denorm_odo {noisy_traj_points.shape}")
         ego_fut_mode = noisy_traj_points.shape[1]
         # 2. proj noisy_traj_points to the query
         traj_pos_embed = gen_sineembed_for_position(noisy_traj_points, hidden_dim=64)
