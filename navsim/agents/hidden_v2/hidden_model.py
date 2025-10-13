@@ -208,7 +208,7 @@ class HiddenModel(nn.Module):
         output: Dict[str, torch.Tensor] = {"bev_semantic_map": bev_semantic_map}
 
         trajectory = self._trajectory_head(trajectory_query, agents_query, cross_bev_feature, bev_spatial_shape,
-                                           status_encoding[:, None], gaze_query, targets=targets, global_img=None)
+                                           status_encoding[:, None], gaze_query,trajectories, targets=targets, global_img=None)
         output.update(trajectory)
 
         agents = self._agent_head(agents_query)
