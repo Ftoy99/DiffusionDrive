@@ -416,6 +416,8 @@ class CustomTransformerDecoderLayer(nn.Module):
                 status_encoding,
                 gaze_query,
                 global_img=None):
+        print(f"Before cross_bev traj_feature {traj_feature.shape}")
+        print(f"Before cross_bev noisy_traj_points {noisy_traj_points.shape}")
         traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape)
 
         traj_feature = traj_feature + self.dropout(
