@@ -419,11 +419,12 @@ class CustomTransformerDecoderLayer(nn.Module):
         print(f"Before cross_bev traj_feature {traj_feature.shape}") # [64, 16, 20, 256]
         print(f"Before cross_bev noisy_traj_points {noisy_traj_points.shape}") # [64, 16, 20, 8, 2]
         traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape)
-        print(f"traj_feature  after cross_bev_attention {traj_feature.shape}") # [64, 16, 20, 8, 2]
+        print(f"traj_feature  after cross_bev_attention {traj_feature.shape}") # [64, 16, 20, 256]
+        print(f"agents_query  after cross_bev_attention {agents_query.shape}") # [64, 16, 20, 256]
+        print(f"ego_query  after cross_bev_attention {ego_query.shape}") # [64, 16, 20, 256]
         traj_feature = traj_feature + self.dropout(
             self.cross_agent_attention(traj_feature, agents_query, agents_query)[0])
         traj_feature = self.norm1(traj_feature)
-
         # traj_feature = traj_feature + self.dropout(self.self_attn(traj_feature, traj_feature, traj_feature)[0])
 
         # 4.5 cross attention with  ego query
