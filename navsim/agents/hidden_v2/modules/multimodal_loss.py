@@ -135,14 +135,15 @@ class LossComputer(nn.Module):
         print(plan_anchor.shape)
         print(targets["trajectory"].shape)
 
-        print("After Loss")
+        poses_reg = poses_reg[:, 0, ...]  # shape: [bs, num_mode, ts, d]
+        poses_cls = poses_cls[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
+
+        print("After swap")
         print(poses_reg.shape)
         print(poses_cls.shape)
         print(plan_anchor.shape)
         print(targets["trajectory"].shape)
 
-        poses_reg = poses_reg[:, 0, ...]  # shape: [bs, num_mode, ts, d]
-        poses_cls = poses_cls[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
 
         dist = torch.linalg.norm(target_traj.unsqueeze(1)[...,:2] - plan_anchor, dim=-1)
         dist = dist.mean(dim=-1)
