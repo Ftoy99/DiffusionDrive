@@ -416,12 +416,12 @@ class CustomTransformerDecoderLayer(nn.Module):
                 status_encoding,
                 gaze_query,
                 global_img=None):
-        print(f"Before cross_bev traj_feature {traj_feature.shape}") # [64, 16, 20, 256]
-        print(f"Before cross_bev noisy_traj_points {noisy_traj_points.shape}") # [64, 16, 20, 8, 2]
+        print(f"Before cross_bev traj_feature {traj_feature.shape}")  # [64, 16, 20, 256]
+        print(f"Before cross_bev noisy_traj_points {noisy_traj_points.shape}")  # [64, 16, 20, 8, 2]
         traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape)
-        print(f"traj_feature  after cross_bev_attention {traj_feature.shape}") # [64, 16, 20, 256]
-        print(f"agents_query  after cross_bev_attention {agents_query.shape}") # [[64, 30, 256]
-        print(f"ego_query  after cross_bev_attention {ego_query.shape}") # [64, 1, 256]
+        print(f"traj_feature  after cross_bev_attention {traj_feature.shape}")  # [64, 16, 20, 256]
+        print(f"agents_query  after cross_bev_attention {agents_query.shape}")  # [[64, 30, 256]
+        print(f"ego_query  after cross_bev_attention {ego_query.shape}")  # [64, 1, 256]
         bs, n_agent, n_step, c = traj_feature.shape
         traj_feature = traj_feature.reshape(bs, n_agent * n_step, c)
 
@@ -450,7 +450,7 @@ class CustomTransformerDecoderLayer(nn.Module):
         poses_reg, poses_cls = self.task_decoder(traj_feature)  # bs,20,8,3; bs,20
         print(f"poses_reg {poses_reg.shape}")
         print(f"poses_cls {poses_cls.shape}")
-        poses_reg = poses_reg.view(bs, 16, 20, 8,3)
+        poses_reg = poses_reg.view(bs, 16, 20, 8, 3)
         poses_cls = poses_cls.view(bs, 16, 20)
         print(f"poses_reg {poses_reg.shape}")
         print(f"poses_cls {poses_cls.shape}")
@@ -592,13 +592,13 @@ class TrajectoryHead(nn.Module):
                       global_img=None) -> Dict[str, torch.Tensor]:
         bs = ego_query.shape[0]
         device = ego_query.device
-        N,T,P = self.plan_anchor.shape
-        traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2] # Fix dimensions and remove heading
+        N, T, P = self.plan_anchor.shape
+        traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2]  # Fix dimensions and remove heading
         print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
 
-        #TODO this 2
+        # TODO this 2
         plan_anchor = plan_anchor.unsqueeze(1)
         plan_anchor = torch.cat([plan_anchor, traj_anchors], dim=1)
         print(f"plan_anchor.shape {plan_anchor.shape}")
@@ -626,9 +626,9 @@ class TrajectoryHead(nn.Module):
         traj_pos_embed = gen_sineembed_for_position(noisy_traj_points, hidden_dim=64)
         print(f"traj_pos_embed {traj_pos_embed.shape}")
         traj_pos_embed = traj_pos_embed.flatten(-2)
-        print(f"traj_pos_embed after flatten {traj_pos_embed.shape}") # ([64, 16, 20, 512])
+        print(f"traj_pos_embed after flatten {traj_pos_embed.shape}")  # ([64, 16, 20, 512])
         traj_feature = self.plan_anchor_encoder(traj_pos_embed)
-        traj_feature = traj_feature.view(bs,ego_fut_neighbours, ego_fut_mode, -1)
+        traj_feature = traj_feature.view(bs, ego_fut_neighbours, ego_fut_mode, -1)
         print(f"traj_feature {traj_feature.shape}")
         # 3. embed the timesteps
         time_embed = self.time_mlp(timesteps)
@@ -647,6 +647,9 @@ class TrajectoryHead(nn.Module):
             ret_traj_loss += trajectory_loss
 
         mode_idx = poses_cls_list[-1].argmax(dim=-1)
+        print(f"mode_idx {mode_idx.shape}")
+        print(f"poses_reg_list {poses_reg_list.shape}")
+
         mode_idx = mode_idx[..., None, None, None].repeat(1, 1, self._num_poses, 3)
         best_reg = torch.gather(poses_reg_list[-1], 1, mode_idx).squeeze(1)
         return {"trajectory": best_reg, "trajectory_loss": ret_traj_loss, "trajectory_loss_dict": trajectory_loss_dict}
