@@ -588,8 +588,10 @@ class TrajectoryHead(nn.Module):
         print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
-        plan_anchor = plan_anchor.unsqueeze(1)
-        plan_anchor = torch.cat([plan_anchor, traj_anchors], dim=1)
+
+        #TODO this 2
+        # plan_anchor = plan_anchor.unsqueeze(1)
+        # plan_anchor = torch.cat([plan_anchor, traj_anchors], dim=1)
         print(f"plan_anchor.shape {plan_anchor.shape}")
         odo_info_fut = self.norm_odo(plan_anchor)
         print(f"odo_info_fut.shape {odo_info_fut.shape}")
@@ -609,6 +611,7 @@ class TrajectoryHead(nn.Module):
         noisy_traj_points = self.denorm_odo(noisy_traj_points)
         print(f"noisy_traj_points.shape after denorm_odo {noisy_traj_points.shape}")
         ego_fut_mode = noisy_traj_points.shape[1]
+        print(f"ego_fut_mode {ego_fut_mode}")
         # 2. proj noisy_traj_points to the query
         traj_pos_embed = gen_sineembed_for_position(noisy_traj_points, hidden_dim=64)
         traj_pos_embed = traj_pos_embed.flatten(-2)
