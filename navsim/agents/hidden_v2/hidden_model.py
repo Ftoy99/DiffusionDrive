@@ -611,14 +611,15 @@ class TrajectoryHead(nn.Module):
         noisy_traj_points = self.denorm_odo(noisy_traj_points)
         print(f"noisy_traj_points.shape after denorm_odo {noisy_traj_points.shape}")
         ego_fut_mode = noisy_traj_points.shape[2]
+        ego_fut_neighbours = noisy_traj_points.shape[1]
         print(f"ego_fut_mode {ego_fut_mode}")
         # 2. proj noisy_traj_points to the query
         traj_pos_embed = gen_sineembed_for_position(noisy_traj_points, hidden_dim=64)
         print(f"traj_pos_embed {traj_pos_embed.shape}")
         traj_pos_embed = traj_pos_embed.flatten(-2)
-        print(f"traj_pos_embed after flatten {traj_pos_embed.shape}")
+        print(f"traj_pos_embed after flatten {traj_pos_embed.shape}") # ([64, 16, 20, 512])
         traj_feature = self.plan_anchor_encoder(traj_pos_embed)
-        traj_feature = traj_feature.view(bs, ego_fut_mode, -1)
+        traj_feature = traj_feature.view(bs,ego_fut_neighbours, ego_fut_mode, -1)
         print(f"traj_feature {traj_feature.shape}")
         # 3. embed the timesteps
         time_embed = self.time_mlp(timesteps)
