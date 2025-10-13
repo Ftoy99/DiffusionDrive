@@ -560,25 +560,28 @@ class TrajectoryHead(nn.Module):
         return torch.cat([odo_info_fut_x, odo_info_fut_y, odo_info_fut_head], dim=-1)
 
     def forward(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,
+                trajectories,
                 targets=None,
                 global_img=None) -> Dict[str, torch.Tensor]:
         """Torch module forward pass."""
         if self.training:
             return self.forward_train(ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding,
-                                      gaze_query, targets,
+                                      gaze_query, trajectories, targets,
                                       global_img)
         else:
             return self.forward_test(ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding,
-                                     gaze_query,
+                                     gaze_query, trajectories,
                                      global_img)
 
     def forward_train(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,
+                      trajectories,
                       targets=None,
                       global_img=None) -> Dict[str, torch.Tensor]:
         bs = ego_query.shape[0]
         device = ego_query.device
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
+        print(f"plan_anchor.shape {plan_anchor.shape }")
         odo_info_fut = self.norm_odo(plan_anchor)
         timesteps = torch.randint(
             0, 50,
@@ -621,6 +624,7 @@ class TrajectoryHead(nn.Module):
         return {"trajectory": best_reg, "trajectory_loss": ret_traj_loss, "trajectory_loss_dict": trajectory_loss_dict}
 
     def forward_test(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,
+                     trajectories,
                      global_img) -> \
             Dict[str, torch.Tensor]:
         step_num = 2
@@ -633,8 +637,11 @@ class TrajectoryHead(nn.Module):
 
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
+        print(f"plan_anchor.shape {plan_anchor.shape}")
         img = self.norm_odo(plan_anchor)
+        print(f"img.shape {img.shape}")
         noise = torch.randn(img.shape, device=device)
+        print(f"noise.shape {noise.shape}")
         trunc_timesteps = torch.ones((bs,), device=device, dtype=torch.long) * 8
         img = self.diffusion_scheduler.add_noise(original_samples=img, noise=noise, timesteps=trunc_timesteps)
         ego_fut_mode = img.shape[1]
