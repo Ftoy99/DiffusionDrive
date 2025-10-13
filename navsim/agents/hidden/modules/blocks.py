@@ -95,6 +95,10 @@ class GridSampleCrossBEVAttention(nn.Module):
         print(f"grid shape {grid.shape}")
         print(f"value shape {value.shape}")
 
+        # attenion_weights ftorch.Size([64, 20, 8])
+        # grid shape torch.Size([64, 20, 8, 2])
+        # value shape torch.Size([64, 256, 64, 64])
+
         # Sample features
         sampled_features = torch.nn.functional.grid_sample(
             value,

@@ -76,8 +76,8 @@ class GridSampleCrossBEVAttention(nn.Module):
 
         """
 
-        bs, num_agents, num_queries, num_points, _ = traj_points.shape
-
+        B, A, num_queries, num_points, _ = traj_points.shape
+        print(f"traj_points.shape f{traj_points.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
         # Normalize trajectory points to [-1, 1] range for grid_sample
         normalized_trajectory = traj_points.clone()
         normalized_trajectory[..., 0] = normalized_trajectory[..., 0] / self.config.lidar_max_y
@@ -86,11 +86,11 @@ class GridSampleCrossBEVAttention(nn.Module):
         normalized_trajectory = normalized_trajectory[..., [1, 0]]  # Swap x and y
 
         attention_weights = self.attention_weights(queries)
-        attention_weights = attention_weights.view(bs, num_agents, num_queries, num_points).softmax(-1)
+        attention_weights = attention_weights.view(B, A, num_queries, num_points).softmax(-1)
         print(f"attenion_weights f{attention_weights.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
 
         value = self.value_proj(bev_feature)  # Points
-        grid = normalized_trajectory.view(bs, num_agents, num_queries, num_points, 2)
+        grid = normalized_trajectory.view(B, A, num_queries, num_points, 2)
 
         print(f"grid shape {grid.shape}")
         print(f"value shape {value.shape}")
