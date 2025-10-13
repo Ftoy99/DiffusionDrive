@@ -420,8 +420,11 @@ class CustomTransformerDecoderLayer(nn.Module):
         print(f"Before cross_bev noisy_traj_points {noisy_traj_points.shape}") # [64, 16, 20, 8, 2]
         traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape)
         print(f"traj_feature  after cross_bev_attention {traj_feature.shape}") # [64, 16, 20, 256]
-        print(f"agents_query  after cross_bev_attention {agents_query.shape}") # [64, 16, 20, 256]
-        print(f"ego_query  after cross_bev_attention {ego_query.shape}") # [64, 16, 20, 256]
+        print(f"agents_query  after cross_bev_attention {agents_query.shape}") # [[64, 30, 256]
+        print(f"ego_query  after cross_bev_attention {ego_query.shape}") # [64, 1, 256]
+        bs, n_agent, n_step, c = traj_feature.shape
+        traj_feature = traj_feature.reshape(bs, n_agent * n_step, c)
+
         traj_feature = traj_feature + self.dropout(
             self.cross_agent_attention(traj_feature, agents_query, agents_query)[0])
         traj_feature = self.norm1(traj_feature)
@@ -445,6 +448,8 @@ class CustomTransformerDecoderLayer(nn.Module):
 
         # 4.9 predict the offset & heading
         poses_reg, poses_cls = self.task_decoder(traj_feature)  # bs,20,8,3; bs,20
+        print(f"poses_reg {poses_reg.shape}")
+        print(f"poses_cls {poses_cls.shape}")
         poses_reg[..., :2] = poses_reg[..., :2] + noisy_traj_points
         poses_reg[..., StateSE2Index.HEADING] = poses_reg[..., StateSE2Index.HEADING].tanh() * np.pi
 
