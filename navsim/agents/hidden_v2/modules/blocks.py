@@ -78,7 +78,7 @@ class GridSampleCrossBEVAttention(nn.Module):
 
         B, A, num_queries, num_points, _ = traj_points.shape
         C = bev_feature.shape[1]
-        print(f"traj_points.shape f{traj_points.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
+        # print(f"traj_points.shape f{traj_points.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
 
         # Normalize trajectory points to [-1, 1] range for grid_sample
         normalized_trajectory = traj_points.clone()
@@ -88,7 +88,7 @@ class GridSampleCrossBEVAttention(nn.Module):
 
         attention_weights = self.attention_weights(queries)
         attention_weights = attention_weights.view(B, A, num_queries, num_points).softmax(-1)
-        print(f"attenion_weights f{attention_weights.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
+        # print(f"attenion_weights f{attention_weights.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
 
         value = self.value_proj(bev_feature)  # Points
         # Merge agents into batch
