@@ -86,7 +86,7 @@ class GridSampleCrossBEVAttention(nn.Module):
         normalized_trajectory = normalized_trajectory[..., [1, 0]]  # Swap x and y
 
         attention_weights = self.attention_weights(queries)
-        attention_weights = attention_weights.view(bs, num_queries, num_points).softmax(-1)
+        attention_weights = attention_weights.view(bs,num_agents, num_queries, num_points).softmax(-1)
 
         value = self.value_proj(bev_feature)
         grid = normalized_trajectory.view(bs, num_queries, num_points, 2)
