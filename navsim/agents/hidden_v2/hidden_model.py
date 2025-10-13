@@ -580,7 +580,8 @@ class TrajectoryHead(nn.Module):
                       global_img=None) -> Dict[str, torch.Tensor]:
         bs = ego_query.shape[0]
         device = ego_query.device
-        traj_anchors = trajectories.unsqueeze(2)  # Add neighboor dimensions
+        N,T,P = self.plan_anchor.shape
+        traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)
         print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1).unsqueeze(1)
