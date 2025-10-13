@@ -646,6 +646,7 @@ class TrajectoryHead(nn.Module):
             trajectory_loss_dict[f"trajectory_loss_{idx}"] = trajectory_loss
             ret_traj_loss += trajectory_loss
 
+        print(f"poses_cls_list {poses_cls_list.shape}")
         mode_idx = poses_cls_list[-1].argmax(dim=-1)
         print(f"mode_idx {mode_idx.shape}")
         print(f"poses_reg_list {poses_reg_list.shape}")
