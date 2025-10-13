@@ -721,7 +721,12 @@ class TrajectoryHead(nn.Module):
                 timestep=k,
                 sample=img
             ).prev_sample
+
         mode_idx = poses_cls.argmax(dim=-1)
+        # TODO Remove this
+        mode_idx = mode_idx[:, 0]
         mode_idx = mode_idx[..., None, None, None].repeat(1, 1, self._num_poses, 3)
-        best_reg = torch.gather(poses_reg, 1, mode_idx).squeeze(1)
+        poses_reg_single = poses_reg_list[-1][:, 0, ...]  # shape: [64, 20, 8, 3]
+        # print(f"poses_reg_single {poses_reg_single.shape}") # [64, 16, 20, 8, 3]
+        best_reg = torch.gather(poses_reg_single, 1, mode_idx).squeeze(1)
         return {"trajectory": best_reg}
