@@ -594,42 +594,42 @@ class TrajectoryHead(nn.Module):
         device = ego_query.device
         N, T, P = self.plan_anchor.shape
         traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2]  # Fix dimensions and remove heading
-        print(f"traj_anchors.shape {traj_anchors.shape}")
+        # print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
 
         # TODO this 2
         plan_anchor = plan_anchor.unsqueeze(1)
         plan_anchor = torch.cat([plan_anchor, traj_anchors], dim=1)
-        print(f"plan_anchor.shape {plan_anchor.shape}")
+        # print(f"plan_anchor.shape {plan_anchor.shape}")
         odo_info_fut = self.norm_odo(plan_anchor)
-        print(f"odo_info_fut.shape {odo_info_fut.shape}")
+        # print(f"odo_info_fut.shape {odo_info_fut.shape}")
         timesteps = torch.randint(
             0, 50,
             (bs,), device=device
         )
         noise = torch.randn(odo_info_fut.shape, device=device)
-        print(f"noise.shape {noise.shape}")
+        # print(f"noise.shape {noise.shape}")
         noisy_traj_points = self.diffusion_scheduler.add_noise(
             original_samples=odo_info_fut,
             noise=noise,
             timesteps=timesteps,
         ).float()
-        print(f"noisy_traj_points.shape {noisy_traj_points.shape}")
+        # print(f"noisy_traj_points.shape {noisy_traj_points.shape}")
         noisy_traj_points = torch.clamp(noisy_traj_points, min=-1, max=1)
         noisy_traj_points = self.denorm_odo(noisy_traj_points)
-        print(f"noisy_traj_points.shape after denorm_odo {noisy_traj_points.shape}")
+        # print(f"noisy_traj_points.shape after denorm_odo {noisy_traj_points.shape}")
         ego_fut_mode = noisy_traj_points.shape[2]
         ego_fut_neighbours = noisy_traj_points.shape[1]
-        print(f"ego_fut_mode {ego_fut_mode}")
+        # print(f"ego_fut_mode {ego_fut_mode}")
         # 2. proj noisy_traj_points to the query
         traj_pos_embed = gen_sineembed_for_position(noisy_traj_points, hidden_dim=64)
-        print(f"traj_pos_embed {traj_pos_embed.shape}")
+        # print(f"traj_pos_embed {traj_pos_embed.shape}")
         traj_pos_embed = traj_pos_embed.flatten(-2)
-        print(f"traj_pos_embed after flatten {traj_pos_embed.shape}")  # ([64, 16, 20, 512])
+        # print(f"traj_pos_embed after flatten {traj_pos_embed.shape}")  # ([64, 16, 20, 512])
         traj_feature = self.plan_anchor_encoder(traj_pos_embed)
         traj_feature = traj_feature.view(bs, ego_fut_neighbours, ego_fut_mode, -1)
-        print(f"traj_feature {traj_feature.shape}")
+        # print(f"traj_feature {traj_feature.shape}")
         # 3. embed the timesteps
         time_embed = self.time_mlp(timesteps)
         time_embed = time_embed.view(bs, 1, -1)
@@ -647,16 +647,16 @@ class TrajectoryHead(nn.Module):
             ret_traj_loss += trajectory_loss
 
         mode_idx = poses_cls_list[-1].argmax(dim=-1)
-        print(f"mode_idx {mode_idx.shape}")
+        # print(f"mode_idx {mode_idx.shape}")
         # TODO Remove this
         mode_idx = mode_idx[:, 0]
         mode_idx = mode_idx[..., None, None, None].repeat(1, 1, self._num_poses, 3)
-        print(f"mode_idx {mode_idx.shape}")
+        # print(f"mode_idx {mode_idx.shape}")
         # print(len(poses_reg_list)) # Len of 2
         # print(len(poses_reg_list[-1])) # 64
-        print(poses_reg_list[-1].shape) # [64, 16, 20, 8, 3]
+        # print(poses_reg_list[-1].shape) # [64, 16, 20, 8, 3]
         poses_reg_single = poses_reg_list[-1][:, 0, ...]  # shape: [64, 20, 8, 3]
-        print(f"poses_reg_single {poses_reg_single.shape}") # [64, 16, 20, 8, 3]
+        # print(f"poses_reg_single {poses_reg_single.shape}") # [64, 16, 20, 8, 3]
         best_reg = torch.gather(poses_reg_single, 1, mode_idx).squeeze(1)
         return {"trajectory": best_reg, "trajectory_loss": ret_traj_loss, "trajectory_loss_dict": trajectory_loss_dict}
 
