@@ -416,6 +416,9 @@ class CustomTransformerDecoderLayer(nn.Module):
                 status_encoding,
                 gaze_query,
                 global_img=None):
+
+        print(f"noisy_traj_points {noisy_traj_points.shape}")
+
         traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape)
 
         traj_feature = traj_feature + self.dropout(
@@ -584,7 +587,8 @@ class TrajectoryHead(nn.Module):
         traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2] # Fix dimensions and remove heading
         print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
-        plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1).unsqueeze(1)
+        plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
+        plan_anchor = plan_anchor.unsqueeze(1)
         plan_anchor = torch.cat([plan_anchor, traj_anchors], dim=1)
         print(f"plan_anchor.shape {plan_anchor.shape}")
         odo_info_fut = self.norm_odo(plan_anchor)
