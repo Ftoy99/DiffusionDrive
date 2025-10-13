@@ -617,6 +617,7 @@ class TrajectoryHead(nn.Module):
         traj_pos_embed = traj_pos_embed.flatten(-2)
         traj_feature = self.plan_anchor_encoder(traj_pos_embed)
         traj_feature = traj_feature.view(bs, ego_fut_mode, -1)
+        print(f"traj_feature {traj_feature.shape}")
         # 3. embed the timesteps
         time_embed = self.time_mlp(timesteps)
         time_embed = time_embed.view(bs, 1, -1)
