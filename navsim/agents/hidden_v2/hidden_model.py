@@ -450,7 +450,7 @@ class CustomTransformerDecoderLayer(nn.Module):
         poses_reg, poses_cls = self.task_decoder(traj_feature)  # bs,20,8,3; bs,20
         print(f"poses_reg {poses_reg.shape}")
         print(f"poses_cls {poses_cls.shape}")
-        poses_reg = poses_reg.view(bs, 16, 20, -1)
+        poses_reg = poses_reg.view(bs, 16, 20, 8,3)
         poses_cls = poses_cls.view(bs, 16, 20)
         print(f"poses_reg {poses_reg.shape}")
         print(f"poses_cls {poses_cls.shape}")
