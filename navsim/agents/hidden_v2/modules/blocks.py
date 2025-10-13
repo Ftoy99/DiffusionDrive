@@ -76,7 +76,7 @@ class GridSampleCrossBEVAttention(nn.Module):
 
         """
 
-        bs, num_queries, num_points, _ = traj_points.shape
+        bs,num_agents, num_queries, num_points, _ = traj_points.shape
 
         # Normalize trajectory points to [-1, 1] range for grid_sample
         normalized_trajectory = traj_points.clone()
