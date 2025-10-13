@@ -87,9 +87,14 @@ class GridSampleCrossBEVAttention(nn.Module):
 
         attention_weights = self.attention_weights(queries)
         attention_weights = attention_weights.view(bs, num_queries, num_points).softmax(-1)
+        print(f"attenion_weights f{attention_weights.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
 
         value = self.value_proj(bev_feature)
         grid = normalized_trajectory.view(bs, num_queries, num_points, 2)
+
+        print(f"grid shape {grid.shape}")
+        print(f"value shape {value.shape}")
+
         # Sample features
         sampled_features = torch.nn.functional.grid_sample(
             value,
