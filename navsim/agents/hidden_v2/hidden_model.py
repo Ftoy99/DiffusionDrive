@@ -654,8 +654,10 @@ class TrajectoryHead(nn.Module):
         print(f"mode_idx {mode_idx.shape}")
         # print(len(poses_reg_list)) # Len of 2
         # print(len(poses_reg_list[-1])) # 64
-        print(poses_reg_list[-1].shape)
-        best_reg = torch.gather(poses_reg_list[-1], 1, mode_idx).squeeze(1)
+        print(poses_reg_list[-1].shape) # [64, 16, 20, 8, 3]
+        poses_reg_single = poses_reg_list[-1][:, 0, ...]  # shape: [64, 20, 8, 3]
+        print(f"poses_reg_single {poses_reg_single.shape}") # [64, 16, 20, 8, 3]
+        best_reg = torch.gather(poses_reg_single, 1, mode_idx).squeeze(1)
         return {"trajectory": best_reg, "trajectory_loss": ret_traj_loss, "trajectory_loss_dict": trajectory_loss_dict}
 
     def forward_test(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,
