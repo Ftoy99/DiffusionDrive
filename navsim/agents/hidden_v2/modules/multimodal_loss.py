@@ -137,6 +137,7 @@ class LossComputer(nn.Module):
 
         poses_reg = poses_reg[:, 0, ...]  # shape: [bs, num_mode, ts, d]
         poses_cls = poses_cls[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
+        plan_anchor = plan_anchor[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
 
         print("After swap")
         print(poses_reg.shape)
