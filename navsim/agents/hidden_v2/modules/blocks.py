@@ -77,12 +77,13 @@ class GridSampleCrossBEVAttention(nn.Module):
         """
 
         B, A, num_queries, num_points, _ = traj_points.shape
+        C = bev_feature.shape[1]
         print(f"traj_points.shape f{traj_points.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
+
         # Normalize trajectory points to [-1, 1] range for grid_sample
         normalized_trajectory = traj_points.clone()
         normalized_trajectory[..., 0] = normalized_trajectory[..., 0] / self.config.lidar_max_y
         normalized_trajectory[..., 1] = normalized_trajectory[..., 1] / self.config.lidar_max_x
-
         normalized_trajectory = normalized_trajectory[..., [1, 0]]  # Swap x and y
 
         attention_weights = self.attention_weights(queries)
@@ -90,10 +91,10 @@ class GridSampleCrossBEVAttention(nn.Module):
         print(f"attenion_weights f{attention_weights.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
 
         value = self.value_proj(bev_feature)  # Points
-        grid = normalized_trajectory.view(B, A, num_queries, num_points, 2)
+        # Merge agents into batch
+        grid = normalized_trajectory.view(B * A, num_queries, num_points, 2)
+        value = value.repeat_interleave(A, dim=0)  # [B*A, 256, H, W]
 
-        print(f"grid shape {grid.shape}")
-        print(f"value shape {value.shape}")
         # Sample features
         sampled_features = torch.nn.functional.grid_sample(
             value,
@@ -101,11 +102,14 @@ class GridSampleCrossBEVAttention(nn.Module):
             mode='bilinear',
             padding_mode='zeros',
             align_corners=False
-        )  # bs, C, num_queries, num_points
+        )  # [B*A, C, num_queries, num_points]
 
-        attention_weights = attention_weights.unsqueeze(1)
-        out = (attention_weights * sampled_features).sum(dim=-1)
-        out = out.permute(0, 2, 1).contiguous()  # bs, num_queries, C
+        attention_weights = attention_weights.view(B * A, 1, num_queries, num_points)
+        out = (attention_weights * sampled_features).sum(dim=-1)  # [B*A, C, num_queries]
+        out = out.permute(0, 2, 1).contiguous()  # [B*A, num_queries, C]
         out = self.output_proj(out)
 
-        return self.dropout(out) + queries
+        # Reshape back to (B, A, num_queries, C)
+        out = self.dropout(out).view(B, A, num_queries, -1) + queries
+
+        return out
