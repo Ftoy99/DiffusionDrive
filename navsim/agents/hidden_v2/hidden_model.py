@@ -208,7 +208,8 @@ class HiddenModel(nn.Module):
         output: Dict[str, torch.Tensor] = {"bev_semantic_map": bev_semantic_map}
 
         trajectory = self._trajectory_head(trajectory_query, agents_query, cross_bev_feature, bev_spatial_shape,
-                                           status_encoding[:, None], gaze_query,trajectories, targets=targets, global_img=None)
+                                           status_encoding[:, None], gaze_query, trajectories, targets=targets,
+                                           global_img=None)
         output.update(trajectory)
 
         agents = self._agent_head(agents_query)
@@ -579,11 +580,15 @@ class TrajectoryHead(nn.Module):
                       global_img=None) -> Dict[str, torch.Tensor]:
         bs = ego_query.shape[0]
         device = ego_query.device
+        B, D, T, P = self.plan_anchor.shape
+
+        traj_anchors = trajectories.unsqueeze(2)  # Add neighboor dimensions
+        print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
-        print(f"plan_anchor.shape {plan_anchor.shape }")
+        print(f"plan_anchor.shape {plan_anchor.shape}")
         odo_info_fut = self.norm_odo(plan_anchor)
-        print(f"odo_info_fut.shape {odo_info_fut.shape }")
+        print(f"odo_info_fut.shape {odo_info_fut.shape}")
         timesteps = torch.randint(
             0, 50,
             (bs,), device=device
