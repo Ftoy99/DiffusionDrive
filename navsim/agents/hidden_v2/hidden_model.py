@@ -583,7 +583,7 @@ class TrajectoryHead(nn.Module):
         traj_anchors = trajectories.unsqueeze(2)  # Add neighboor dimensions
         print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
-        plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
+        plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1).unsqueeze(1)
         print(f"plan_anchor.shape {plan_anchor.shape}")
         odo_info_fut = self.norm_odo(plan_anchor)
         print(f"odo_info_fut.shape {odo_info_fut.shape}")
