@@ -89,7 +89,7 @@ class GridSampleCrossBEVAttention(nn.Module):
         attention_weights = attention_weights.view(bs,num_agents, num_queries, num_points).softmax(-1)
 
         value = self.value_proj(bev_feature)
-        grid = normalized_trajectory.view(bs, num_queries, num_points, 2)
+        grid = normalized_trajectory.view(bs,num_agents, num_queries, num_points, 2)
         # Sample features
         sampled_features = torch.nn.functional.grid_sample(
             value,
