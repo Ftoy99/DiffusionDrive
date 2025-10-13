@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import functools
-from typing import Callable, Optional
+from typing import Optional
 from torch import Tensor
 from navsim.agents.hidden.hidden_config import HiddenConfig
+
 
 def reduce_loss(loss: Tensor, reduction: str) -> Tensor:
     """Reduce loss as specified.
@@ -24,6 +24,7 @@ def reduce_loss(loss: Tensor, reduction: str) -> Tensor:
         return loss.mean()
     elif reduction_enum == 2:
         return loss.sum()
+
 
 def weight_reduce_loss(loss: Tensor,
                        weight: Optional[Tensor] = None,
@@ -61,6 +62,7 @@ def weight_reduce_loss(loss: Tensor,
         elif reduction != 'none':
             raise ValueError('avg_factor can not be used with reduction="sum"')
     return loss
+
 
 def py_sigmoid_focal_loss(pred,
                           target,
@@ -113,12 +115,13 @@ def py_sigmoid_focal_loss(pred,
 
 
 class LossComputer(nn.Module):
-    def __init__(self,config: HiddenConfig):
+    def __init__(self, config: HiddenConfig):
         self._config = config
         super(LossComputer, self).__init__()
         # self.focal_loss = FocalLoss(use_sigmoid=True, gamma=2.0, alpha=0.25, reduction='mean', loss_weight=1.0, activated=False)
         self.cls_loss_weight = config.trajectory_cls_weight
         self.reg_loss_weight = config.trajectory_reg_weight
+
     def forward(self, poses_reg, poses_cls, targets, plan_anchor):
         """
         pred_traj: (bs, 20, 8, 3)
@@ -145,15 +148,14 @@ class LossComputer(nn.Module):
         # print(plan_anchor.shape)
         # print(targets["trajectory"].shape)
 
-
-        dist = torch.linalg.norm(target_traj.unsqueeze(1)[...,:2] - plan_anchor, dim=-1)
+        dist = torch.linalg.norm(target_traj.unsqueeze(1)[..., :2] - plan_anchor, dim=-1)
         dist = dist.mean(dim=-1)
         mode_idx = torch.argmin(dist, dim=-1)
         cls_target = mode_idx
         # print(f"mode idx {mode_idx.shape}")
         # print(f"ts {ts}")
         # print(f"d {d}")
-        mode_idx = mode_idx[...,None,None,None].repeat(1,1,ts,d)
+        mode_idx = mode_idx[..., None, None, None].repeat(1, 1, ts, d)
         best_reg = torch.gather(poses_reg, 1, mode_idx).squeeze(1)
         # import ipdb; ipdb.set_trace()
         # Calculate cls loss using focal loss
