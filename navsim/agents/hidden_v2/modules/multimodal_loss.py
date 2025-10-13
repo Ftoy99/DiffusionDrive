@@ -133,13 +133,13 @@ class LossComputer(nn.Module):
         print(poses_reg.shape)
         print(poses_cls.shape)
         print(plan_anchor.shape)
-        print(targets.shape)
+        print(targets["trajectory"].shape)
 
         print("After Loss")
         print(poses_reg.shape)
         print(poses_cls.shape)
         print(plan_anchor.shape)
-        print(targets.shape)
+        print(targets["trajectory"].shape)
 
         poses_reg = poses_reg[:, 0, ...]  # shape: [bs, num_mode, ts, d]
         poses_cls = poses_cls[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
