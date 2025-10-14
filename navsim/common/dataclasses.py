@@ -248,22 +248,22 @@ class AgentInput:
             trajectories[tracked_id] = []  # start with first box
             tracked_ids.add(tracked_id)
 
-        for frame_idx in range(start_idx, start_idx + 4):
+        for frame_idx in range(start_idx, start_idx + 8+1):
             anns = scene_dict_list[start_idx]["anns"]
             for name_value, box_value, tracked_id in zip(anns["gt_names"], anns["gt_boxes"], anns["track_tokens"]):
                 if tracked_id not in tracked_ids:
                     continue
-                trajectories[tracked_id].append((box_value[0], box_value[1]))
+                trajectories[tracked_id].append((box_value[0], box_value[1], box_value[6]))
 
         # Keep only agents with exactly 4 future steps
-        trajectories = {k: v for k, v in trajectories.items() if len(v) == 4}
+        trajectories = {k: v for k, v in trajectories.items() if len(v) == 9}
 
         # Keep only agents with exactly 4 future steps
-        trajs = [v for v in trajectories.values() if len(v) == 4]
+        trajs = [v for v in trajectories.values()]
 
         # Pad to 15 agents if fewer
         while len(trajs) < 15:
-            trajs.append([(0.0, 0.0)] * 4)
+            trajs.append([(0.0, 0.0, 0.0)] * 8)
         trajectories = torch.tensor(trajs, dtype=torch.float32)  # (15, 4, 2)
         return AgentInput(ego_statuses, cameras, lidars,trajectories)
 
@@ -469,7 +469,7 @@ class Scene:
         # Pad to 15 agents if fewer
         while len(trajs) < 15:
             trajs.append([(0.0, 0.0,0.0)] * 8)
-        trajectories = torch.tensor(trajs, dtype=torch.float32)  # (15, 8, 3)
+        trajectories = torch.tensor(trajs, dtype=torch.float32)
         return AgentInput(ego_statuses, cameras, lidars,trajectories)
 
     @classmethod
