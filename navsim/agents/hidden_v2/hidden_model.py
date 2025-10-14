@@ -676,6 +676,8 @@ class TrajectoryHead(nn.Module):
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
         plan_anchor = plan_anchor.unsqueeze(1)
+        print(f"traj_anchors {traj_anchors.shape}")
+        print(f"plan_anchor {plan_anchor.shape}")
         plan_anchor = torch.cat([plan_anchor, traj_anchors], dim=1)
         # print(f"plan_anchor.shape {plan_anchor.shape}")
         img = self.norm_odo(plan_anchor)
