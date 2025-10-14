@@ -261,6 +261,18 @@ class AgentInput:
         # Keep only agents with exactly 4 future steps
         trajs = [v for v in trajectories.values()]
 
+        for i, traj in enumerate(trajs):
+            local_ego_poses = convert_absolute_to_relative_se2_array(
+                StateSE2(*traj[0]), np.array(traj[1:], dtype=np.float64)
+            )
+            trajs[i] = Trajectory(
+                local_ego_poses,
+                TrajectorySampling(
+                    num_poses=len(local_ego_poses),
+                    interval_length=NAVSIM_INTERVAL_LENGTH,
+                ),
+            ).poses
+
         # Pad to 15 agents if fewer
         while len(trajs) < 15:
             trajs.append([(0.0, 0.0, 0.0)] * 8)
