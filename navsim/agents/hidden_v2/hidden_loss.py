@@ -19,10 +19,12 @@ def hidden_loss(
     :return: combined loss value
     """
     # import ipdb; ipdb.set_trace()
+    print(predictions)
     if "trajectory_loss" in predictions:
         trajectory_loss = predictions["trajectory_loss"]
     else:
         trajectory_loss = F.l1_loss(predictions["trajectory"], targets["trajectory"])
+
     agent_class_loss, agent_box_loss = _agent_loss(targets, predictions, config)
     bev_semantic_loss = F.cross_entropy(
         predictions["bev_semantic_map"], targets["bev_semantic_map"].long()
