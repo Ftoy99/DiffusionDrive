@@ -107,6 +107,7 @@ class HiddenAgent(AbstractAgent):
     def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
         str, torch.Tensor]:
         """Inherited, see superclass."""
+        targets["neighbour_trajectories"] = features["trajectories"]
         return self._hidden_model(features, targets=targets)
 
     def compute_loss(
