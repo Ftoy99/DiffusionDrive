@@ -176,6 +176,9 @@ class LossComputer(nn.Module):
             avg_factor=None
         )
 
+        print(f"loss calculator {best_reg.shape}")
+        print(f"loss calculator {target_traj.shape}")
+
         # Calculate regression loss
         reg_loss = self.reg_loss_weight * F.l1_loss(best_reg, target_traj)
         # import ipdb; ipdb.set_trace()
