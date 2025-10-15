@@ -134,19 +134,19 @@ class LossComputer(nn.Module):
 
         #
         # print("Before Loss")
-        print(f"poses_reg.shape {poses_reg.shape}")
-        print(f"poses_cls.shape {poses_cls.shape}")
-        print(f"plan_anchor.shape {plan_anchor.shape}")
-        print(f"targets keys {targets.keys()}")
+        print(f"poses_reg.shape {poses_reg.shape}") # torch.Size([32, 16, 20, 8, 3])
+        print(f"poses_cls.shape {poses_cls.shape}") # torch.Size([32, 16, 20])
+        print(f"plan_anchor.shape {plan_anchor.shape}") #  torch.Size([32, 16, 20, 8, 2])
+        print(f"targets keys {targets.keys()}") #  dict_keys(['trajectory', 'agent_states', 'agent_labels', 'bev_semantic_map', 'neighbour_trajectories'])
 
         poses_reg = poses_reg[:, 0, ...]  # shape: [bs, num_mode, ts, d]
         poses_cls = poses_cls[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
         plan_anchor = plan_anchor[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
         #
-        # print("After swap")
-        # print(poses_reg.shape)
-        # print(poses_cls.shape)
-        # print(plan_anchor.shape)
+        print("After swap")
+        print(f"poses_reg.shape {poses_reg.shape}") # torch.Size([32, 16, 20, 8, 3])
+        print(f"poses_cls.shape {poses_cls.shape}") # torch.Size([32, 16, 20])
+        print(f"plan_anchor.shape {plan_anchor.shape}") #  torch.Size([32, 16, 20, 8, 2])
         # print(targets["trajectory"].shape)
 
         dist = torch.linalg.norm(target_traj.unsqueeze(1)[..., :2] - plan_anchor, dim=-1)
