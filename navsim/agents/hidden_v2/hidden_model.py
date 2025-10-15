@@ -210,7 +210,7 @@ class HiddenModel(nn.Module):
         trajectory = self._trajectory_head(trajectory_query, agents_query, cross_bev_feature, bev_spatial_shape,
                                            status_encoding[:, None], gaze_query, trajectories, targets=targets,
                                            global_img=None)
-        print(f"Trajectory shape {trajectory.keys}")
+        print(f"Trajectory shape {trajectory.keys()}")
         output.update(trajectory)
 
         agents = self._agent_head(agents_query)
