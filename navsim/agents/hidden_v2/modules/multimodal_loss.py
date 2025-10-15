@@ -131,12 +131,13 @@ class LossComputer(nn.Module):
         """
         bs, num_agents, num_mode, ts, d = poses_reg.shape
         target_traj = targets["trajectory"]
+
         #
         # print("Before Loss")
-        # print(poses_reg.shape)
-        # print(poses_cls.shape)
-        # print(plan_anchor.shape)
-        # print(targets["trajectory"].shape)
+        print(f"poses_reg.shape {poses_reg.shape}")
+        print(f"poses_cls.shape {poses_cls.shape}")
+        print(f"plan_anchor.shape {plan_anchor.shape}")
+        print(f"targets keys {targets.keys()}")
 
         poses_reg = poses_reg[:, 0, ...]  # shape: [bs, num_mode, ts, d]
         poses_cls = poses_cls[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
