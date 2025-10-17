@@ -409,6 +409,7 @@ class CustomTransformerDecoderLayer(nn.Module):
     def forward(self,
                 traj_feature,
                 noisy_traj_points,
+                noisy_traj_points_mask,
                 bev_feature,
                 bev_spatial_shape,
                 agents_query,
@@ -417,19 +418,14 @@ class CustomTransformerDecoderLayer(nn.Module):
                 status_encoding,
                 gaze_query,
                 global_img=None):
-        # print(f"Before cross_bev traj_feature {traj_feature.shape}")  # [64, 16, 20, 256]
-        # print(f"Before cross_bev noisy_traj_points {noisy_traj_points.shape}")  # [64, 16, 20, 8, 2]
-        traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, bev_feature, bev_spatial_shape)
-        # print(f"traj_feature  after cross_bev_attention {traj_feature.shape}")  # [64, 16, 20, 256]
-        # print(f"agents_query  after cross_bev_attention {agents_query.shape}")  # [[64, 30, 256]
-        # print(f"ego_query  after cross_bev_attention {ego_query.shape}")  # [64, 1, 256]
+
+        traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points,noisy_traj_points_mask, bev_feature, bev_spatial_shape)
         bs, n_agent, n_step, c = traj_feature.shape
         traj_feature = traj_feature.reshape(bs, n_agent * n_step, c)
 
         traj_feature = traj_feature + self.dropout(
             self.cross_agent_attention(traj_feature, agents_query, agents_query)[0])
         traj_feature = self.norm1(traj_feature)
-        # traj_feature = traj_feature + self.dropout(self.self_attn(traj_feature, traj_feature, traj_feature)[0])
 
         # 4.5 cross attention with  ego query
         traj_feature = traj_feature + self.dropout1(self.cross_ego_attention(traj_feature, ego_query, ego_query)[0])
@@ -449,12 +445,8 @@ class CustomTransformerDecoderLayer(nn.Module):
 
         # 4.9 predict the offset & heading
         poses_reg, poses_cls = self.task_decoder(traj_feature)  # bs,20,8,3; bs,20
-        # print(f"poses_reg {poses_reg.shape}")
-        # print(f"poses_cls {poses_cls.shape}")
         poses_reg = poses_reg.view(bs, 16, 20, 8, 3)
         poses_cls = poses_cls.view(bs, 16, 20)
-        # print(f"poses_reg {poses_reg.shape}")
-        # print(f"poses_cls {poses_cls.shape}")
         poses_reg[..., :2] = poses_reg[..., :2] + noisy_traj_points
         poses_reg[..., StateSE2Index.HEADING] = poses_reg[..., StateSE2Index.HEADING].tanh() * np.pi
 
@@ -481,6 +473,7 @@ class CustomTransformerDecoder(nn.Module):
     def forward(self,
                 traj_feature,
                 noisy_traj_points,
+                noisy_traj_points_mask,
                 bev_feature,
                 bev_spatial_shape,
                 agents_query,
@@ -493,7 +486,7 @@ class CustomTransformerDecoder(nn.Module):
         poses_cls_list = []
         traj_points = noisy_traj_points
         for mod in self.layers:
-            poses_reg, poses_cls = mod(traj_feature, traj_points, bev_feature, bev_spatial_shape, agents_query,
+            poses_reg, poses_cls = mod(traj_feature, traj_points,noisy_traj_points_mask, bev_feature, bev_spatial_shape, agents_query,
                                        ego_query, time_embed, status_encoding, gaze_query, global_img)
             poses_reg_list.append(poses_reg)
             poses_cls_list.append(poses_cls)
@@ -598,18 +591,17 @@ class TrajectoryHead(nn.Module):
         zero_mask = (trajectories[..., :3].abs().sum(dim=-1) == 0)  # [B, neighbors, modes, points]
         mask = zero_mask.all(dim=-1)  # [B, neighbors, modes]
         good = torch.zeros_like(mask[:, :1, :])  # always good
-        mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1, modes]
+        noisy_traj_points_mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1, modes]
         print(f"mask.shape {mask.shape}")
         # print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
 
-        # TODO this 2
+        # Add neighbour trajectories to plan anchor
         plan_anchor = plan_anchor.unsqueeze(1)
         plan_anchor = torch.cat([plan_anchor, traj_anchors], dim=1)
-        # print(f"plan_anchor.shape {plan_anchor.shape}")
+
         odo_info_fut = self.norm_odo(plan_anchor)
-        # print(f"odo_info_fut.shape {odo_info_fut.shape}")
         timesteps = torch.randint(
             0, 50,
             (bs,), device=device
@@ -641,7 +633,7 @@ class TrajectoryHead(nn.Module):
         time_embed = time_embed.view(bs, 1, -1)
 
         # 4. begin the stacked decoder
-        poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points, bev_feature,
+        poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points,noisy_traj_points_mask, bev_feature,
                                                            bev_spatial_shape, agents_query, ego_query, time_embed,
                                                            status_encoding, gaze_query, global_img)
 

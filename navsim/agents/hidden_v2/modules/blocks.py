@@ -66,11 +66,12 @@ class GridSampleCrossBEVAttention(nn.Module):
         nn.init.xavier_uniform_(self.output_proj.weight)
         nn.init.constant_(self.output_proj.bias, 0)
 
-    def forward(self, queries, traj_points, bev_feature, spatial_shape):
+    def forward(self, queries, traj_points,traj_points_mask, bev_feature, spatial_shape):
         """
         Args:
             queries: input features with shape of (bs, num_queries, embed_dims)
             traj_points: trajectory points with shape of (bs, num_queries, num_points, 2)
+            traj_points_mask: trajectory points with shape of (bs, num_queries, num_points, 2)
             bev_feature: bev features with shape of (bs, embed_dims, height, width)
             spatial_shapes: (height, width)
 
@@ -88,11 +89,12 @@ class GridSampleCrossBEVAttention(nn.Module):
 
         attention_weights = self.attention_weights(queries)
         attention_weights = attention_weights.view(B, A, num_queries, num_points).softmax(-1)
-        # print(f"attenion_weights f{attention_weights.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
+        print(f"attenion_weights f{attention_weights.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
 
         value = self.value_proj(bev_feature)  # Points
         # Merge agents into batch
         grid = normalized_trajectory.view(B * A, num_queries, num_points, 2)
+        print(f"grid f{grid.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
         value = value.repeat_interleave(A, dim=0)  # [B*A, 256, H, W]
 
         # Sample features
