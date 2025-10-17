@@ -590,7 +590,7 @@ class TrajectoryHead(nn.Module):
         traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2]  # Fix dimensions and remove [heading,B ,neighboors ,modes ,points ,xy]
         zero_mask = (trajectories[..., :3].abs().sum(dim=-1) == 0)  # [B, neighbors, modes, points]
         mask = zero_mask.all(dim=-1)  # [B, neighbors, modes]
-        good = torch.zeros_like(mask[:, :1, :])  # always good
+        good = torch.zeros(mask.shape[0], 1, mask.shape[2], device=mask.device, dtype=mask.dtype)
         noisy_traj_points_mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1, modes]
         print(f"mask.shape {mask.shape}")
         # print(f"traj_anchors.shape {traj_anchors.shape}")
