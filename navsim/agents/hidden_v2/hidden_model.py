@@ -683,6 +683,14 @@ class TrajectoryHead(nn.Module):
         # print(f"traj_anchors {traj_anchors.shape}")
         # print(f"plan_anchor {plan_anchor.shape}")
         plan_anchor = torch.cat([plan_anchor, traj_anchors], dim=1)
+        # zero_mask: True where trajectory points are all zero
+        zero_mask = (trajectories[..., :3].abs().sum(dim=-1) == 0)  # [B, neighbors, modes]
+        # collapse modes dimension by any (or all) — here we just take any mode as “non-empty”
+        mask = zero_mask.any(dim=-1)  # [B, neighbors] → True if any mode is all zeros
+        # prepend always-good ego
+        good = torch.zeros(mask.shape[0], 1, device=mask.device, dtype=mask.dtype)  # [B, 1]
+        noisy_traj_points_mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1]
+
         # print(f"plan_anchor.shape {plan_anchor.shape}")
         img = self.norm_odo(plan_anchor)
         # print(f"img.shape {img.shape}")
@@ -715,7 +723,7 @@ class TrajectoryHead(nn.Module):
             time_embed = time_embed.view(bs, 1, -1)
 
             # 4. begin the stacked decoder
-            poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points, bev_feature,
+            poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points,noisy_traj_points_mask, bev_feature,
                                                                bev_spatial_shape, agents_query, ego_query, time_embed,
                                                                status_encoding, gaze_query, global_img)
             poses_reg = poses_reg_list[-1]
