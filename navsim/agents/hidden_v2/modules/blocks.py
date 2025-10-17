@@ -78,7 +78,6 @@ class GridSampleCrossBEVAttention(nn.Module):
         """
 
         B, A, num_queries, num_points, _ = traj_points.shape
-        C = bev_feature.shape[1]
         # print(f"traj_points.shape f{traj_points.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
 
         # Normalize trajectory points to [-1, 1] range for grid_sample
