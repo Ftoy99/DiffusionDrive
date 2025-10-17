@@ -594,7 +594,11 @@ class TrajectoryHead(nn.Module):
         bs = ego_query.shape[0]
         device = ego_query.device
         N, T, P = self.plan_anchor.shape
-        traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2]  # Fix dimensions and remove heading
+        traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2]  # Fix dimensions and remove [heading,B ,neighboors ,modes ,points ,xy]
+        zero_mask = (trajectories[..., :3].abs().sum(dim=-1) == 0)  # [B, neighbors, modes, points]
+        mask = zero_mask.all(dim=-1)  # [B, neighbors, modes] → True where trajectory is all zero
+        print(f"mask {mask}")
+        print(f"mask.shape {mask.shape}")
         # print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
