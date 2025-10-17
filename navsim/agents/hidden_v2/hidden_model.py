@@ -588,14 +588,16 @@ class TrajectoryHead(nn.Module):
         device = ego_query.device
         N, T, P = self.plan_anchor.shape
         traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2]  # Fix dimensions and remove [heading,B ,neighboors ,modes ,points ,xy]
-        zero_mask = (trajectories[..., :3].abs().sum(dim=-1) == 0)  # [B, neighbors, modes, points]
-        print(f"zero_mask.shape {zero_mask.shape}")
-        mask = zero_mask.all(dim=-1)  # [B, neighbors, modes]
-        print(f"mask.shape {mask.shape}")
-        good = torch.zeros(mask.shape[0], 1, mask.shape[2], device=mask.device, dtype=mask.dtype)
-        print(f"good.shape {good.shape}")
-        noisy_traj_points_mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1, modes]
-        print(f"mask.shape {mask.shape}")
+        # zero_mask: True where trajectory points are all zero
+        zero_mask = (trajectories[..., :3].abs().sum(dim=-1) == 0)  # [B, neighbors, modes]
+
+        # collapse modes dimension by any (or all) — here we just take any mode as “non-empty”
+        mask = zero_mask.any(dim=-1)  # [B, neighbors] → True if any mode is all zeros
+
+        # prepend always-good ego
+        good = torch.zeros(mask.shape[0], 1, device=mask.device, dtype=mask.dtype)  # [B, 1]
+        noisy_traj_points_mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1]
+        print(f"noisy_traj_points_mask.shape {noisy_traj_points_mask.shape}")
         # print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
