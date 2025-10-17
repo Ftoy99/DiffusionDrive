@@ -19,7 +19,7 @@ def hidden_loss(
     :return: combined loss value
     """
     # import ipdb; ipdb.set_trace()
-    print(predictions.keys())
+    # print(predictions.keys())
     if "trajectory_loss" in predictions:
         trajectory_loss = predictions["trajectory_loss"]
     else:
