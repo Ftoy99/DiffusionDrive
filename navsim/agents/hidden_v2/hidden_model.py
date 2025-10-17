@@ -596,8 +596,9 @@ class TrajectoryHead(nn.Module):
         N, T, P = self.plan_anchor.shape
         traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2]  # Fix dimensions and remove [heading,B ,neighboors ,modes ,points ,xy]
         zero_mask = (trajectories[..., :3].abs().sum(dim=-1) == 0)  # [B, neighbors, modes, points]
-        mask = zero_mask.all(dim=-1)  # [B, neighbors, modes] → True where trajectory is all zero
-        print(f"mask {mask}")
+        mask = zero_mask.all(dim=-1)  # [B, neighbors, modes]
+        good = torch.zeros_like(mask[:, :1, :])  # always good
+        mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1, modes]
         print(f"mask.shape {mask.shape}")
         # print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
