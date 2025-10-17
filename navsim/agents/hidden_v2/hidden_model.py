@@ -598,6 +598,7 @@ class TrajectoryHead(nn.Module):
         good = torch.zeros(mask.shape[0], 1, device=mask.device, dtype=mask.dtype)  # [B, 1]
         noisy_traj_points_mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1]
         print(f"noisy_traj_points_mask.shape {noisy_traj_points_mask.shape}")
+        print(noisy_traj_points_mask)
         # print(f"traj_anchors.shape {traj_anchors.shape}")
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
