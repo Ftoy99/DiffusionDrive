@@ -91,6 +91,20 @@ class GridSampleCrossBEVAttention(nn.Module):
         attention_weights = attention_weights.view(B, A, num_queries, num_points).softmax(-1)
         print(f"attenion_weights f{attention_weights.shape}") # attenion_weights ftorch.Size([64, 16, 20, 8])
 
+        # ------------------ Apply mask ------------------
+        # traj_points_mask: [B, A], True where agent is invalid
+        mask = traj_points_mask[:, :, None, None]  # [B, A, 1, 1]
+        mask = mask.expand(-1, -1, attention_weights.shape[2],
+                           attention_weights.shape[3])  # [B, A, num_queries, num_points]
+
+        # zero out attention for masked agents
+        attention_weights = attention_weights.masked_fill(mask, 0.0)
+
+        # renormalize along num_points
+        attention_weights = attention_weights / (attention_weights.sum(-1, keepdim=True) + 1e-6)
+        # ------------------------------------------------
+        print(f"attention_weights.shape after masking {attention_weights.shape}")
+
         value = self.value_proj(bev_feature)  # Points
         # Merge agents into batch
         grid = normalized_trajectory.view(B * A, num_queries, num_points, 2)
