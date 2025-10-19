@@ -684,8 +684,6 @@ class TrajectoryHead(nn.Module):
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
         plan_anchor = plan_anchor.unsqueeze(1)
-        # print(f"traj_anchors {traj_anchors.shape}")
-        # print(f"plan_anchor {plan_anchor.shape}")
         plan_anchor = torch.cat([plan_anchor, traj_anchors], dim=1)
         # zero_mask: True where trajectory points are all zero
         zero_mask = (trajectories[..., :3].abs().sum(dim=-1) == 0)  # [B, neighbors, modes]
@@ -697,12 +695,14 @@ class TrajectoryHead(nn.Module):
 
         # print(f"plan_anchor.shape {plan_anchor.shape}")
         img = self.norm_odo(plan_anchor)
-        # print(f"img.shape {img.shape}")
-        noise = torch.randn(img.shape, device=device)
-        # print(f"noise.shape {noise.shape}")
+
+        #Noise for only ego agent
+        noise = torch.zeros_like(img) # Start from all zeroes
+        noise[:, 0, :, :, :] = torch.randn_like(img[:, 0, :, :, :])
+
         trunc_timesteps = torch.ones((bs,), device=device, dtype=torch.long) * 8
         img = self.diffusion_scheduler.add_noise(original_samples=img, noise=noise, timesteps=trunc_timesteps)
-        ego_fut_mode = img.shape[1]
+
         for k in roll_timesteps[:]:
             x_boxes = torch.clamp(img, min=-1, max=1)
             noisy_traj_points = self.denorm_odo(x_boxes)
@@ -731,20 +731,30 @@ class TrajectoryHead(nn.Module):
                                                                bev_spatial_shape, agents_query, ego_query, time_embed,
                                                                status_encoding, gaze_query, global_img)
             poses_reg = poses_reg_list[-1]
-            poses_cls = poses_cls_list[-1]
             x_start = poses_reg[..., :2]
             x_start = self.norm_odo(x_start)
+            # --- Only update ego in the diffusion step ---
+            x_start_ego = x_start.clone()
+            x_start_ego[:, 1:, :, :, :] = img[:, 1:, :, :, :]  # keep neighbors as-is
+
             img = self.diffusion_scheduler.step(
-                model_output=x_start,
+                model_output=x_start_ego,
                 timestep=k,
                 sample=img
             ).prev_sample
 
-        mode_idx = poses_cls.argmax(dim=-1)
-        # TODO Remove this
-        mode_idx = mode_idx[:, 0]
-        mode_idx = mode_idx[..., None, None, None].repeat(1, 1, self._num_poses, 3)
-        poses_reg_single = poses_reg_list[-1][:, 0, ...]  # shape: [64, 20, 8, 3]
-        # print(f"poses_reg_single {poses_reg_single.shape}") # [64, 16, 20, 8, 3]
-        best_reg = torch.gather(poses_reg_single, 1, mode_idx).squeeze(1)
+        poses_cls_single = poses_cls_list[-1][:, 0, :]
+        poses_reg_single = poses_reg_list[-1][:, 0, ...]
+
+        # Pick best mode per batch item
+        mode_idx = poses_cls_single.argmax(dim=-1)  # (bs,)
+
+        # Expand for gather along mode dimension
+        mode_idx_exp = mode_idx[:, None, None, None].long()  # (bs, 1, 1)
+        # Gather best mode
+        best_reg = torch.gather(
+            poses_reg_single,
+            1,
+            mode_idx_exp.expand(-1, 1, poses_reg_single.shape[2], poses_reg_single.shape[3])
+        ).squeeze(1)  # (bs, 1, 8, 3)
         return {"trajectory": best_reg}
