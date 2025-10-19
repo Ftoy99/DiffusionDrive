@@ -124,52 +124,40 @@ class LossComputer(nn.Module):
 
     def forward(self, poses_reg, poses_cls, targets, plan_anchor):
         """
-        pred_traj: (bs, 20, 8, 3)
-        pred_cls: (bs, 20)
-        plan_anchor: (bs,20, 8, 2)
+        poses_reg: (bs, 16, 20, 8, 3)
+        poses_cls: (bs, 16, 20)
         targets['trajectory']: (bs, 8, 3)
+        targets['neighbour_trajectories']: (bs,15,8,3)
+        plan_anchor: (bs, 16, 20, 8, 2)
         """
         bs, num_agents, num_mode, ts, d = poses_reg.shape
-        target_traj = targets["trajectory"]
 
-        #
-        # print("Before Loss")
-        # print(f"poses_reg.shape {poses_reg.shape}") # torch.Size([32, 16, 20, 8, 3])
-        # print(f"poses_cls.shape {poses_cls.shape}") # torch.Size([32, 16, 20])
-        # print(f"plan_anchor.shape {plan_anchor.shape}") #  torch.Size([32, 16, 20, 8, 2])
-        # print(f"targets keys {targets.keys()}") #  dict_keys(['trajectory', 'agent_states', 'agent_labels', 'bev_semantic_map', 'neighbour_trajectories'])
+        # 1. Combine ego and neighbor trajectories
+        target_traj = torch.cat((targets["trajectory"].unsqueeze(1),targets["neighbour_trajectories"]),dim=1) # (bs,16,8,3)
 
-        poses_reg = poses_reg[:, 0, ...]  # shape: [bs, num_mode, ts, d]
-        poses_cls = poses_cls[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
-        plan_anchor = plan_anchor[:, 0, ...]  # shape: [bs, num_mode] or [bs, ts] depending on shape
-        #
-        # print("After swap")
-        # print(f"poses_reg.shape {poses_reg.shape}") # torch.Size([32, 16, 20, 8, 3])
-        # print(f"poses_cls.shape {poses_cls.shape}") # torch.Size([32, 16, 20])
-        # print(f"plan_anchor.shape {plan_anchor.shape}") #  torch.Size([32, 16, 20, 8, 2])
-        # print(targets["trajectory"].shape)
+        # 2. Expand to match modes
+        target_traj_exp = target_traj.unsqueeze(2).expand(bs, num_agents, num_mode, ts, d)
 
-        dist = torch.linalg.norm(target_traj.unsqueeze(1)[..., :2] - plan_anchor, dim=-1)
-        dist = dist.mean(dim=-1)
-        mode_idx = torch.argmin(dist, dim=-1)
+        # 3. Find closest mode per agent between targets and plan_anchor that has the 20 modes / so we have [1-20 and then 0,0,0,0,0 since the others are ground truth]
+        dist = torch.linalg.norm(target_traj_exp[..., :2] - plan_anchor, dim=-1) # Compute euclidean distance of each waypoint
+        dist = dist.mean(dim=-1) # avg
+        mode_idx = torch.argmin(dist, dim=-1) # Find closest mode per agent
         cls_target = mode_idx
-        # print(f"mode idx {mode_idx.shape}")
-        # print(f"ts {ts}")
-        # print(f"d {d}")
-        mode_idx = mode_idx[..., None, None, None].repeat(1, 1, ts, d)
-        best_reg = torch.gather(poses_reg, 1, mode_idx).squeeze(1)
+
+        # 4. Gather best regression predictions
+        mode_idx_exp = mode_idx[..., None, None, None].long()  # (bs,16,1,1,1)
+        best_reg = torch.gather(poses_reg, 2, mode_idx_exp.expand(-1, -1, 1, ts, d)).squeeze(2)
+        target_best = torch.gather(target_traj_exp, 2, mode_idx_exp.expand(-1, -1, 1, ts, d)).squeeze(2)
+
         # import ipdb; ipdb.set_trace()
         # Calculate cls loss using focal loss
-        target_classes_onehot = torch.zeros([bs, num_mode],
-                                            dtype=poses_cls.dtype,
-                                            layout=poses_cls.layout,
-                                            device=poses_cls.device)
-        target_classes_onehot.scatter_(1, cls_target.unsqueeze(1), 1)
+        target_onehot = torch.zeros_like(poses_cls)
+        target_onehot.scatter_(2, cls_target.unsqueeze(-1), 1)
 
         # Use py_sigmoid_focal_loss function for focal loss calculation
         loss_cls = self.cls_loss_weight * py_sigmoid_focal_loss(
             poses_cls,
-            target_classes_onehot,
+            target_onehot,
             weight=None,
             gamma=2.0,
             alpha=0.25,
@@ -177,11 +165,8 @@ class LossComputer(nn.Module):
             avg_factor=None
         )
 
-        # print(f"loss calculator {best_reg.shape}")
-        # print(f"loss calculator {target_traj.shape}")
-
         # Calculate regression loss
-        reg_loss = self.reg_loss_weight * F.l1_loss(best_reg, target_traj)
+        reg_loss = self.reg_loss_weight * F.l1_loss(best_reg, target_best)
         # import ipdb; ipdb.set_trace()
         # Combine classification and regression losses
         ret_loss = loss_cls + reg_loss

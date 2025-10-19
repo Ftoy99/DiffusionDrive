@@ -613,7 +613,6 @@ class TrajectoryHead(nn.Module):
             (bs,), device=device
         )
         noise = torch.randn(odo_info_fut.shape, device=device)
-        # print(f"noise.shape {noise.shape}")
         noisy_traj_points = self.diffusion_scheduler.add_noise(
             original_samples=odo_info_fut,
             noise=noise,
@@ -650,18 +649,23 @@ class TrajectoryHead(nn.Module):
             trajectory_loss_dict[f"trajectory_loss_{idx}"] = trajectory_loss
             ret_traj_loss += trajectory_loss
 
-        mode_idx = poses_cls_list[-1].argmax(dim=-1)
-        # print(f"mode_idx {mode_idx.shape}")
-        # TODO Remove this
-        mode_idx = mode_idx[:, 0]
-        mode_idx = mode_idx[..., None, None, None].repeat(1, 1, self._num_poses, 3)
-        # print(f"mode_idx {mode_idx.shape}")
-        # print(len(poses_reg_list)) # Len of 2
-        # print(len(poses_reg_list[-1])) # 64
-        # print(poses_reg_list[-1].shape) # [64, 16, 20, 8, 3]
-        poses_reg_single = poses_reg_list[-1][:, 0, ...]  # shape: [64, 20, 8, 3]
-        # print(f"poses_reg_single {poses_reg_single.shape}") # [64, 16, 20, 8, 3]
-        best_reg = torch.gather(poses_reg_single, 1, mode_idx).squeeze(1)
+
+        poses_cls_single = poses_cls_list[-1][:,0,:]
+        poses_reg_single =  poses_reg_list[-1][:,0,...]
+
+        # Pick best mode per batch item
+        mode_idx = poses_cls_single.argmax(dim=-1)  # (bs,)
+
+        # Expand for gather along mode dimension
+        mode_idx_exp = mode_idx[:, None, None,None].long()  # (bs, 1, 1)
+
+        # Gather best mode
+        best_reg = torch.gather(
+            poses_reg_single,
+            1,
+            mode_idx_exp.expand(-1, 1, poses_reg_single.shape[2], poses_reg_single.shape[3])
+        ).squeeze(1)  # (bs, 1, 8, 3)
+
         return {"trajectory": best_reg, "trajectory_loss": ret_traj_loss, "trajectory_loss_dict": trajectory_loss_dict}
 
     def forward_test(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,
