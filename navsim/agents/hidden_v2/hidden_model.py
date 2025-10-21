@@ -426,7 +426,7 @@ class CustomTransformerDecoderLayer(nn.Module):
         traj_feature = traj_feature + self.dropout(
             self.cross_agent_attention(traj_feature, agents_query, agents_query)[0])
         traj_feature = self.norm1(traj_feature)
-
+        print(traj_feature.shape)
         # 4.5 cross attention with  ego query
         traj_feature = traj_feature + self.dropout1(self.cross_ego_attention(traj_feature, ego_query, ego_query)[0])
         traj_feature = self.norm2(traj_feature)
