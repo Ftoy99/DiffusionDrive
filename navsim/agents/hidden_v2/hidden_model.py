@@ -362,15 +362,18 @@ class CustomTransformerDecoderLayer(nn.Module):
                  config,
                  ):
         super().__init__()
-        self.dropout = nn.Dropout(0.1)
-        self.dropout1 = nn.Dropout(0.1)
-        self.dropout2 = nn.Dropout(0.1)
         self.cross_bev_attention = GridSampleCrossBEVAttention(
             config.tf_d_model,
             config.tf_num_head,
             num_points=num_poses,
             config=config,
             in_bev_dims=256,
+        )
+        self.self_attention = nn.MultiheadAttention(
+            config.tf_d_model,
+            config.tf_num_head,
+            dropout=config.tf_dropout,
+            batch_first=True,
         )
         self.cross_agent_attention = nn.MultiheadAttention(
             config.tf_d_model,
@@ -395,10 +398,18 @@ class CustomTransformerDecoderLayer(nn.Module):
             nn.ReLU(),
             nn.Linear(config.tf_d_ffn, config.tf_d_model),
         )
+
+        self.dropout1 = nn.Dropout(0.1)
+        self.dropout2 = nn.Dropout(0.1)
+        self.dropout3 = nn.Dropout(0.1)
+        self.dropout4 = nn.Dropout(0.1)
+
         self.norm1 = nn.LayerNorm(config.tf_d_model)
         self.norm2 = nn.LayerNorm(config.tf_d_model)
         self.norm3 = nn.LayerNorm(config.tf_d_model)
         self.norm4 = nn.LayerNorm(config.tf_d_model)
+        self.norm5 = nn.LayerNorm(config.tf_d_model)
+
         self.time_modulation = ModulationLayer(config.tf_d_model, 256)
         self.task_decoder = DiffMotionPlanningRefinementModule(
             embed_dims=config.tf_d_model,
@@ -423,28 +434,31 @@ class CustomTransformerDecoderLayer(nn.Module):
         bs, n_agent, n_step, c = traj_feature.shape
         traj_feature = traj_feature.reshape(bs, n_agent * n_step, c)
 
-        traj_feature = traj_feature + self.dropout(
+        traj_feature = traj_feature + self.dropout1(
             self.cross_agent_attention(traj_feature, agents_query, agents_query)[0])
         traj_feature = self.norm1(traj_feature)
-        print(traj_feature.shape)
-        # 4.5 cross attention with  ego query
-        traj_feature = traj_feature + self.dropout1(self.cross_ego_attention(traj_feature, ego_query, ego_query)[0])
+
+        traj_feature = traj_feature + self.dropout2(self.self_attention(traj_feature, traj_feature, traj_feature)[0])
         traj_feature = self.norm2(traj_feature)
+
+        # 4.5 cross attention with  ego query
+        traj_feature = traj_feature + self.dropout3(self.cross_ego_attention(traj_feature, ego_query, ego_query)[0])
+        traj_feature = self.norm3(traj_feature)
 
         # 4.6 cross attention with  gaze query
         if gaze_query is not None:
-            traj_feature = traj_feature + self.dropout2(
+            traj_feature = traj_feature + self.dropout4(
                 self.cross_gaze_attention(traj_feature, gaze_query, gaze_query)[0]
             )
-            traj_feature = self.norm3(traj_feature)
+            traj_feature = self.norm4(traj_feature)
 
         # 4.7 feedforward network
-        traj_feature = self.norm4(self.ffn(traj_feature))
+        traj_feature = self.norm5(self.ffn(traj_feature))
         # 4.8 modulate with time steps
         traj_feature = self.time_modulation(traj_feature, time_embed, global_cond=None, global_img=global_img)
 
         # 4.9 predict the offset & heading
-        poses_reg, poses_cls = self.task_decoder(traj_feature)  # bs,20,8,3; bs,20
+        poses_reg, poses_cls = self.task_decoder(traj_feature)
         poses_reg = poses_reg.view(bs, 16, 20, 8, 3)
         poses_cls = poses_cls.view(bs, 16, 20)
         poses_reg[..., :2] = poses_reg[..., :2] + noisy_traj_points
