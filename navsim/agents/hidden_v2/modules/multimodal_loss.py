@@ -124,46 +124,39 @@ class LossComputer(nn.Module):
 
     def forward(self, poses_reg, poses_cls, targets, plan_anchor):
         """
+        Ego-only loss
         poses_reg: (bs, 16, 20, 8, 3)
         poses_cls: (bs, 16, 20)
         targets['trajectory']: (bs, 8, 3)
         targets['neighbour_trajectories']: (bs,15,8,3)
         plan_anchor: (bs, 16, 20, 8, 2)
         """
-        bs, num_agents, num_mode, ts, d = poses_reg.shape
 
-        # # 1. Combine ego and neighbor trajectories
-        # target_traj = torch.cat((targets["trajectory"].unsqueeze(1), targets["neighbour_trajectories"]),
-        #                         dim=1)  # (bs,16,8,3)
+        bs, _, num_mode, ts, d = poses_reg.shape
 
-        # Keep only ego (first agent)
+        # --- Keep only ego (first agent) ---
         target_traj = targets["trajectory"].unsqueeze(1)  # (bs, 1, ts, 3)
         poses_reg = poses_reg[:, 0:1, ...]  # (bs, 1, num_mode, ts, 3)
         poses_cls = poses_cls[:, 0:1, ...]  # (bs, 1, num_mode)
         plan_anchor = plan_anchor[:, 0:1, ...]  # (bs, 1, num_mode, ts, 2)
 
-        # 2. Expand to match modes
-        target_traj_exp = target_traj.unsqueeze(2).expand(bs, num_agents, num_mode, ts, d)
+        # --- Expand target to match modes ---
+        target_traj_exp = target_traj.unsqueeze(2).expand(bs, 1, num_mode, ts, d)
 
-        # 3. Find closest mode per agent between targets and plan_anchor that has the 20 modes / so we have [1-20 and then 0,0,0,0,0 since the others are ground truth]
-        dist = torch.linalg.norm(target_traj_exp[..., :2] - plan_anchor,
-                                 dim=-1)  # Compute euclidean distance of each waypoint
-        dist = dist.mean(dim=-1)  # avg
-        mode_idx = torch.argmin(dist, dim=-1)  # Find closest mode per agent
-        cls_target = mode_idx
+        # --- Find closest mode ---
+        dist = torch.linalg.norm(target_traj_exp[..., :2] - plan_anchor, dim=-1)  # (bs,1,num_mode,ts)
+        dist = dist.mean(dim=-1)  # (bs,1,num_mode)
+        mode_idx = torch.argmin(dist, dim=-1)  # (bs,1)
+        cls_target = mode_idx.squeeze(1)  # (bs,)
 
-        # 4. Gather best regression predictions
-        mode_idx_exp = mode_idx[..., None, None, None].long()  # (bs,16,1,1,1)
-        best_reg = torch.gather(poses_reg, 2, mode_idx_exp.expand(-1, -1, 1, ts, d)).squeeze(2)
-        best_reg = best_reg.squeeze(2)  # (bs,1,ts,d)
-        target_best = torch.gather(target_traj_exp, 2, mode_idx_exp.expand(-1, -1, 1, ts, d)).squeeze(2)
+        # --- Gather best regression predictions ---
+        mode_idx_exp = cls_target[:, None, None, None].long()  # (bs,1,1,1)
+        best_reg = torch.gather(poses_reg, 2, mode_idx_exp.expand(-1, 1, 1, ts, d)).squeeze(2)  # (bs,1,ts,d)
+        target_best = torch.gather(target_traj_exp, 2, mode_idx_exp.expand(-1, 1, 1, ts, d)).squeeze(2)  # (bs,1,ts,d)
 
-        # import ipdb; ipdb.set_trace()
-        # Calculate cls loss using focal loss
+        # --- Classification loss (focal loss) ---
         target_onehot = torch.zeros_like(poses_cls)
-        target_onehot.scatter_(2, cls_target.unsqueeze(-1), 1)
-
-        # Use py_sigmoid_focal_loss function for focal loss calculation
+        target_onehot.scatter_(2, cls_target[:, None, None], 1)
         loss_cls = self.cls_loss_weight * py_sigmoid_focal_loss(
             poses_cls,
             target_onehot,
@@ -174,9 +167,9 @@ class LossComputer(nn.Module):
             avg_factor=None
         )
 
-        # Calculate regression loss
+        # --- Regression loss ---
         reg_loss = self.reg_loss_weight * F.l1_loss(best_reg, target_best)
-        # import ipdb; ipdb.set_trace()
-        # Combine classification and regression losses
+
+        # --- Total loss ---
         ret_loss = loss_cls + reg_loss
         return ret_loss
