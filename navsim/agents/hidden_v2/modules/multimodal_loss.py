@@ -132,16 +132,24 @@ class LossComputer(nn.Module):
         """
         bs, num_agents, num_mode, ts, d = poses_reg.shape
 
-        # 1. Combine ego and neighbor trajectories
-        target_traj = torch.cat((targets["trajectory"].unsqueeze(1),targets["neighbour_trajectories"]),dim=1) # (bs,16,8,3)
+        # # 1. Combine ego and neighbor trajectories
+        # target_traj = torch.cat((targets["trajectory"].unsqueeze(1), targets["neighbour_trajectories"]),
+        #                         dim=1)  # (bs,16,8,3)
+
+        # Keep only ego (first agent)
+        target_traj = targets["trajectory"].unsqueeze(1)  # (bs, 1, ts, 3)
+        poses_reg = poses_reg[:, 0:1, ...]  # (bs, 1, num_mode, ts, 3)
+        poses_cls = poses_cls[:, 0:1, ...]  # (bs, 1, num_mode)
+        plan_anchor = plan_anchor[:, 0:1, ...]  # (bs, 1, num_mode, ts, 2)
 
         # 2. Expand to match modes
         target_traj_exp = target_traj.unsqueeze(2).expand(bs, num_agents, num_mode, ts, d)
 
         # 3. Find closest mode per agent between targets and plan_anchor that has the 20 modes / so we have [1-20 and then 0,0,0,0,0 since the others are ground truth]
-        dist = torch.linalg.norm(target_traj_exp[..., :2] - plan_anchor, dim=-1) # Compute euclidean distance of each waypoint
-        dist = dist.mean(dim=-1) # avg
-        mode_idx = torch.argmin(dist, dim=-1) # Find closest mode per agent
+        dist = torch.linalg.norm(target_traj_exp[..., :2] - plan_anchor,
+                                 dim=-1)  # Compute euclidean distance of each waypoint
+        dist = dist.mean(dim=-1)  # avg
+        mode_idx = torch.argmin(dist, dim=-1)  # Find closest mode per agent
         cls_target = mode_idx
 
         # 4. Gather best regression predictions
