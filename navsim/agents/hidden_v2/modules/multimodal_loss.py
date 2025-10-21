@@ -155,6 +155,7 @@ class LossComputer(nn.Module):
         # 4. Gather best regression predictions
         mode_idx_exp = mode_idx[..., None, None, None].long()  # (bs,16,1,1,1)
         best_reg = torch.gather(poses_reg, 2, mode_idx_exp.expand(-1, -1, 1, ts, d)).squeeze(2)
+        best_reg = best_reg.squeeze(2)  # (bs,1,ts,d)
         target_best = torch.gather(target_traj_exp, 2, mode_idx_exp.expand(-1, -1, 1, ts, d)).squeeze(2)
 
         # import ipdb; ipdb.set_trace()
