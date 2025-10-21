@@ -703,7 +703,7 @@ class TrajectoryHead(nn.Module):
         # noise[:, 0, :, :, :] = torch.randn_like(img[:, 0, :, :, :])
 
         # #Noise for all
-        noise = torch.randn(img, device=device)  # Start from all zeroes
+        noise = torch.randn(img.shape, device=device)  # Start from all zeroes
 
         trunc_timesteps = torch.ones((bs,), device=device, dtype=torch.long) * 8
         img = self.diffusion_scheduler.add_noise(original_samples=img, noise=noise, timesteps=trunc_timesteps)
