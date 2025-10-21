@@ -150,9 +150,17 @@ class LossComputer(nn.Module):
         cls_target = mode_idx.squeeze(1)  # (bs,)
 
         # --- Gather best regression predictions ---
-        mode_idx_exp = cls_target[:, None, None, None].long()  # (bs,1,1,1)
-        best_reg = torch.gather(poses_reg, 2, mode_idx_exp.expand(-1, 1, 1, ts, d)).squeeze(2)  # (bs,1,ts,d)
-        target_best = torch.gather(target_traj_exp, 2, mode_idx_exp.expand(-1, 1, 1, ts, d)).squeeze(2)  # (bs,1,ts,d)
+        # cls_target: (bs,)
+        mode_idx_exp = cls_target[:, None, None, None, None].long()  # (bs,1,1,1,1)
+
+        # gather along dim=2 (num_mode)
+        best_reg = torch.gather(
+            poses_reg, 2, mode_idx_exp.expand(-1, 1, 1, ts, d)
+        ).squeeze(2)  # (bs,1,ts,d)
+
+        target_best = torch.gather(
+            target_traj_exp, 2, mode_idx_exp.expand(-1, 1, 1, ts, d)
+        ).squeeze(2)  # (bs,1,ts,d)
 
         # --- Classification loss (focal loss) ---
         target_onehot = torch.zeros_like(poses_cls)
