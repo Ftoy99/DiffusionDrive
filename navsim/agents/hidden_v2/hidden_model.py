@@ -418,8 +418,8 @@ class CustomTransformerDecoderLayer(nn.Module):
                 status_encoding,
                 gaze_query,
                 global_img=None):
-
-        traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points,noisy_traj_points_mask, bev_feature, bev_spatial_shape)
+        traj_feature = self.cross_bev_attention(traj_feature, noisy_traj_points, noisy_traj_points_mask, bev_feature,
+                                                bev_spatial_shape)
         bs, n_agent, n_step, c = traj_feature.shape
         traj_feature = traj_feature.reshape(bs, n_agent * n_step, c)
 
@@ -486,7 +486,8 @@ class CustomTransformerDecoder(nn.Module):
         poses_cls_list = []
         traj_points = noisy_traj_points
         for mod in self.layers:
-            poses_reg, poses_cls = mod(traj_feature, traj_points,noisy_traj_points_mask, bev_feature, bev_spatial_shape, agents_query,
+            poses_reg, poses_cls = mod(traj_feature, traj_points, noisy_traj_points_mask, bev_feature,
+                                       bev_spatial_shape, agents_query,
                                        ego_query, time_embed, status_encoding, gaze_query, global_img)
             poses_reg_list.append(poses_reg)
             poses_cls_list.append(poses_cls)
@@ -587,7 +588,8 @@ class TrajectoryHead(nn.Module):
         bs = ego_query.shape[0]
         device = ego_query.device
         N, T, P = self.plan_anchor.shape
-        traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[..., :2]  # Fix dimensions and remove [heading,B ,neighboors ,modes ,points ,xy]
+        traj_anchors = trajectories.unsqueeze(2).repeat(1, 1, N, 1, 1)[...,
+                       :2]  # Fix dimensions and remove [heading,B ,neighboors ,modes ,points ,xy]
         # zero_mask: True where trajectory points are all zero
         zero_mask = (trajectories[..., :3].abs().sum(dim=-1) == 0)  # [B, neighbors, modes]
 
@@ -638,7 +640,8 @@ class TrajectoryHead(nn.Module):
         time_embed = time_embed.view(bs, 1, -1)
 
         # 4. begin the stacked decoder
-        poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points,noisy_traj_points_mask, bev_feature,
+        poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points, noisy_traj_points_mask,
+                                                           bev_feature,
                                                            bev_spatial_shape, agents_query, ego_query, time_embed,
                                                            status_encoding, gaze_query, global_img)
 
@@ -649,15 +652,14 @@ class TrajectoryHead(nn.Module):
             trajectory_loss_dict[f"trajectory_loss_{idx}"] = trajectory_loss
             ret_traj_loss += trajectory_loss
 
-
-        poses_cls_single = poses_cls_list[-1][:,0,:]
-        poses_reg_single =  poses_reg_list[-1][:,0,...]
+        poses_cls_single = poses_cls_list[-1][:, 0, :]
+        poses_reg_single = poses_reg_list[-1][:, 0, ...]
 
         # Pick best mode per batch item
         mode_idx = poses_cls_single.argmax(dim=-1)  # (bs,)
 
         # Expand for gather along mode dimension
-        mode_idx_exp = mode_idx[:, None, None,None].long()  # (bs, 1, 1)
+        mode_idx_exp = mode_idx[:, None, None, None].long()  # (bs, 1, 1)
 
         # Gather best mode
         best_reg = torch.gather(
@@ -696,9 +698,12 @@ class TrajectoryHead(nn.Module):
         # print(f"plan_anchor.shape {plan_anchor.shape}")
         img = self.norm_odo(plan_anchor)
 
-        #Noise for only ego agent
-        noise = torch.zeros_like(img) # Start from all zeroes
-        noise[:, 0, :, :, :] = torch.randn_like(img[:, 0, :, :, :])
+        # #Noise for only ego agent
+        # noise = torch.zeros_like(img) # Start from all zeroes
+        # noise[:, 0, :, :, :] = torch.randn_like(img[:, 0, :, :, :])
+
+        # #Noise for all
+        noise = torch.randn(img, device=device)  # Start from all zeroes
 
         trunc_timesteps = torch.ones((bs,), device=device, dtype=torch.long) * 8
         img = self.diffusion_scheduler.add_noise(original_samples=img, noise=noise, timesteps=trunc_timesteps)
@@ -727,7 +732,8 @@ class TrajectoryHead(nn.Module):
             time_embed = time_embed.view(bs, 1, -1)
 
             # 4. begin the stacked decoder
-            poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points,noisy_traj_points_mask, bev_feature,
+            poses_reg_list, poses_cls_list = self.diff_decoder(traj_feature, noisy_traj_points, noisy_traj_points_mask,
+                                                               bev_feature,
                                                                bev_spatial_shape, agents_query, ego_query, time_embed,
                                                                status_encoding, gaze_query, global_img)
             poses_reg = poses_reg_list[-1]
