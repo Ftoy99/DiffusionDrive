@@ -557,7 +557,7 @@ class TrajectoryHead(nn.Module):
             d_ffn=d_ffn,
             config=config,
         )
-        self.diff_decoder = CustomTransformerDecoder(diff_decoder_layer, 2)
+        self.diff_decoder = CustomTransformerDecoder(diff_decoder_layer, 4)
 
         self.loss_computer = LossComputer(config)
 
