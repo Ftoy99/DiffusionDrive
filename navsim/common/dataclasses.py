@@ -20,7 +20,6 @@ from nuplan.database.utils.pointclouds.lidar import LidarPointCloud
 from nuplan.common.maps.abstract_map import AbstractMap
 from nuplan.common.actor_state.tracked_objects_types import TrackedObjectType
 
-from navsim.agents.hidden.hidden_config import HiddenConfig
 from navsim.planning.simulation.planner.pdm_planner.utils.pdm_geometry_utils import (
     convert_absolute_to_relative_se2_array,
 )
@@ -248,22 +247,29 @@ class AgentInput:
             trajectories[tracked_id] = []  # start with first box
             tracked_ids.add(tracked_id)
 
-        for frame_idx in range(start_idx, start_idx + 8+1):
-            anns = scene_dict_list[start_idx]["anns"]
+        for frame_idx in range(start_idx, start_idx + 8):
+            anns = scene_dict_list[frame_idx]["anns"]
             for name_value, box_value, tracked_id in zip(anns["gt_names"], anns["gt_boxes"], anns["track_tokens"]):
                 if tracked_id not in tracked_ids:
                     continue
-                trajectories[tracked_id].append((box_value[0], box_value[1], box_value[6]))
+                ego_t = np.array(scene_dict_list[frame_idx]["ego2global_translation"])[:2]
+                ego_q = Quaternion(*scene_dict_list[frame_idx]["ego2global_rotation"])
+                R = ego_q.rotation_matrix[:2, :2]  # 2x2 rotation
+                ego_yaw = ego_q.yaw_pitch_roll[0]
 
-        # Keep only agents with exactly 4 future steps
-        trajectories = {k: v for k, v in trajectories.items() if len(v) == 9}
+                local_xy = np.array(box_value[:2])
+                global_xy = R @ local_xy + ego_t
+                global_yaw = box_value[6] + ego_yaw
+                trajectories[tracked_id].append((global_xy[0], global_xy[1], global_yaw))
 
-        # Keep only agents with exactly 4 future steps
+        # Keep only agents with exactly 8 future steps
+        trajectories = {k: v for k, v in trajectories.items() if len(v) == 8}
+        # Keep only agents with exactly 8 future steps
         trajs = [v for v in trajectories.values()]
 
         for i, traj in enumerate(trajs):
             local_ego_poses = convert_absolute_to_relative_se2_array(
-                StateSE2(*traj[0]), np.array(traj[1:], dtype=np.float64)
+                StateSE2(*global_ego_poses[-1]), np.array(traj, dtype=np.float64)
             )
             trajs[i] = Trajectory(
                 local_ego_poses,

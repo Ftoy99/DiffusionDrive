@@ -6,8 +6,7 @@ import numpy as np
 import torch
 import pickle
 
-
-
+from navsim.agents.hidden_v2.hidden_config import HiddenConfig
 
 def draw_bev(features, ego_fut_trajs_rel, trajectories=None, boxes=None):
     bev_img_draw = features[0, :, :]  # (H,W)
@@ -25,6 +24,9 @@ def draw_bev(features, ego_fut_trajs_rel, trajectories=None, boxes=None):
         for pos in ego_fut_trajs_rel:
             x_px = int(origin[0] - pos[1] / resolution)
             y_px = int(origin[1] - pos[0] / resolution)
+            # flip both axes
+            x_px = W - 1 - x_px
+            y_px = H - 1 - y_px
             if 0 <= x_px < W and 0 <= y_px < H:
                 # Draw a small square instead of single pixel
                 size = 2  # box half-size
@@ -62,7 +64,6 @@ def draw_semantic(bev_map_tensor, ego_fut_trajs_rel, trajectories):
     bev_map = bev_map_tensor.cpu().numpy().astype(np.int32)
     H, W = bev_map.shape
     center = np.array([W / 2, H / 2])
-    angle = np.pi / 2  # 90° CCW, use -np.pi/2 for CW
     resolution = 0.1
     colors = {
         0: (0, 0, 0),  # background → Black
@@ -76,19 +77,12 @@ def draw_semantic(bev_map_tensor, ego_fut_trajs_rel, trajectories):
     bev_img = np.zeros((H, W, 3), dtype=np.uint8)
     for label, color in colors.items():
         bev_img[bev_map == label] = color
-    # angle_deg = 90  # rotation angle in degrees (positive = CCW)
-    # center = (bev_img.shape[1] // 2, bev_img.shape[0] // 2)  # rotate around image center
-    # M = cv2.getRotationMatrix2D(center, angle_deg, 1.0)
-    # bev_img = cv2.warpAffine(bev_img, M, (bev_img.shape[1], bev_img.shape[0]))
-    # # Flip vertically (upside down)
-    # bev_img = cv2.flip(bev_img, 0)  # 0 = vertical flip
-    origin = np.array([W // 2, H // 2])
-    # Draw ego/vehicle trajectory (dark blue)
-    # Draw ego/vehicle future trajectory (green, thicker)
+
     if ego_fut_trajs_rel is not None:
         for pos in ego_fut_trajs_rel:
-            x_px = int(origin[0] - pos[1] / resolution)
-            y_px = int(origin[1] - pos[0] / resolution)
+
+            x_px = int(center[0] - pos[1] / resolution)
+            y_px = int(center[1] - pos[0] / resolution)
             if 0 <= x_px < W and 0 <= y_px < H:
                 # Draw a small square instead of single pixel
                 size = 2  # box half-size
@@ -97,30 +91,24 @@ def draw_semantic(bev_map_tensor, ego_fut_trajs_rel, trajectories):
                 y_min = max(y_px - size, 0)
                 y_max = min(y_px + size + 1, H)
                 bev_img[y_min:y_max, x_min:x_max] = (0, 255, 0)  # green BGR
-    # Draw other trajectories (green)
-    if trajectories is not None:
-        # for traj_list, box_list in zip(trajectories, boxes):
-        for traj_list in trajectories:
-            color = tuple(np.random.randint(0, 256, size=3).tolist())
-            # for pos, box in zip(traj_list, box_list):
-            for pos in traj_list:
-                pos_np = pos[:2].cpu().numpy().reshape(1, 2)  # shape (1,2)
 
-                # # Apply flips
+    # Draw other trajectories (colored dots)
+    if trajectories is not None:
+        for trajectory in trajectories:
+            color = (0,255,255)
+            for waypoint in trajectory:
+                pos_np = waypoint[:2].cpu().numpy() # shape (1,2)
+
                 # pos_np = flip_coords(pos_np, H)
                 # pos_np = flip_upside_down(pos_np, H)
 
-                x_px = int(pos_np[0, 0])
-                y_px = int(pos_np[0, 1])
+                x_px = int(center[0] - pos_np[0]/ resolution)
+                y_px = int(center[1] - pos_np[1]/ resolution)
+                # flip both axes
+                x_px = W - 1 - x_px
+                y_px = H - 1 - y_px
                 if 0 <= x_px < W and 0 <= y_px < H:
-                    # # polygon points
-                    # cfg = HiddenConfig()
-                    # corners_px = box_to_corners_px_manual(box,cfg.bev_pixel_width, cfg.bev_pixel_size)
-                    # # corners_px = rotate_coords(corners_px, angle, center)
-                    # corners_px = flip_coords(corners_px,H)
-                    # corners_px = flip_upside_down(corners_px,H)
-                    # cv2.fillPoly(bev_img, [corners_px.astype(np.int32)], color=(0, 255, 255))
-                    size = 1  # same as ego
+                    size = 1
                     x_min = max(x_px - size, 0)
                     x_max = min(x_px + size + 1, W)
                     y_min = max(y_px - size, 0)
@@ -129,7 +117,9 @@ def draw_semantic(bev_map_tensor, ego_fut_trajs_rel, trajectories):
 
     # Draw a unique color block in the middle
     center_size = 2  # half-size, so total 4x4
-    x_c, y_c = origin
+    x_c, y_c = center
+    x_c = int(x_c)
+    y_c = int(y_c)
     x_min = max(x_c - center_size, 0)
     x_max = min(x_c + center_size + 1, W)
     y_min = max(y_c - center_size, 0)

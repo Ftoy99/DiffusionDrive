@@ -240,7 +240,6 @@ def main(cfg: DictConfig):
 
     logger.info(f"Found {len(scene_loader)} raw scenarios")
 
-
     # Start flask server
     app.run(debug=True)
 

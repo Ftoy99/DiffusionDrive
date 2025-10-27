@@ -145,13 +145,11 @@ class HiddenModel(nn.Module):
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
         trajectories: torch.Tensor = features["trajectories"]
-        # print(f"trajectories.shape {trajectories.shape}")
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]
 
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
-        # print(f"Shape of gaze before processing {gaze_feature.shape}")
 
         if not gaze_flag:
             gaze_feature_backbone = self._gaze_backbone(
