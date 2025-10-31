@@ -532,7 +532,7 @@ class TrajectoryHead(nn.Module):
         )
 
         plan_anchor = np.load(plan_anchor_path)
-
+        plan_anchor[19]=0
         self.plan_anchor = nn.Parameter(
             torch.tensor(plan_anchor, dtype=torch.float32),
             requires_grad=False,
