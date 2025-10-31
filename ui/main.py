@@ -1,3 +1,4 @@
+import base64
 import io
 import logging
 import time
@@ -5,12 +6,14 @@ from pathlib import Path
 from typing import Optional
 
 import hydra
+import torch
 from PIL import Image
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, Response, jsonify
 
 from navsim.agents.abstract_agent import AbstractAgent
+from navsim.agents.hidden_v2.hidden_config import HiddenConfig
 from navsim.common.dataclasses import SceneFilter
 from navsim.common.dataloader import SceneLoader
 from test.visualization import draw_bev, draw_semantic
@@ -31,6 +34,7 @@ outputs = None
 
 features = None
 targets = None
+agent_input = None
 
 
 @app.route("/")
@@ -64,26 +68,12 @@ def models():
 
     return "\n".join(options)
 
-@app.route("/inference_results")
-def inference_results():
-    pass
-    return render_template("inference_results.html")
-
-@app.route("/dataset")
-def dataset():
-    pass
-    return render_template("dataset_content.html")
-
-@app.route("/inference")
-def inference():
-    pass
-    return render_template("inference_content.html")
-
 @app.route("/scenario")
 def scenario():
     global scene_loader
     global features
     global targets
+    global agent_input
     if scene_loader is None:
         return "<div>No SceneLoader initialized</div>"
 
@@ -97,7 +87,7 @@ def scenario():
 
     features = agent.get_feature_builders()[0].compute_features(agent_input)
     targets = agent.get_target_builders()[0].compute_targets(scene)
-    return render_template("viewer.html")
+    return Response(status=200)
 
 @app.route("/camera")
 def camera():
@@ -198,26 +188,94 @@ def semantic_png():
     buffer.seek(0)
     return send_file(buffer, mimetype='image/png')
 
-@app.route("/run_inference", methods=["POST"])
-def run_inference():
-    global scene_loader
+@app.route("/model_select", methods=["POST"])
+def model_select():
     global agent
-    global features
-    global targets
-    global outputs
-    feat_copy = features
-    model = request.form.get("model")
-    if agent.checkpoint_path is not model:
-        logger.info(f"Loading from pretrained")
-        agent.checkpoint_path = model
-        agent.initialize()
+    model_path = request.form.get("model")
+    if not model_path:
+        return Response("No model provided", status=400)
+
+    if agent.checkpoint_path != model_path:
+        logger.info(f"Switching model to {model_path}")
+        agent.checkpoint_path = model_path
+        agent.init_from_pretrained()
+        logger.info(f"Switching model to {model_path} - END")
         agent.eval()
-
-    feat_copy = {k: v.unsqueeze(0) for k, v in feat_copy.items()} # Add batch dim
-    outputs = agent.forward(feat_copy)
-    return render_template("inference_results.html")
+    return Response(status=200)
 
 
+@app.route("/scenario_data", methods=["GET"])
+def scenario_data():
+    logger.info("Get scenario_data")
+    global features, targets, agent_input, agent, outputs
+    config = HiddenConfig()
+
+    # --- Camera image ---
+    img_tensor = features["camera_feature"]
+    img_array = (img_tensor.permute(1, 2, 0).detach().cpu().numpy() * 255).astype("uint8")
+    pil_img = Image.fromarray(img_array)
+    buffer = io.BytesIO()
+    pil_img.save(buffer, format="PNG")
+    encoded_img = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+    img_tensor = features["gaze"]
+    img_array = (img_tensor.permute(1, 2, 0).detach().cpu().numpy() * 255).astype("uint8")
+    pil_img = Image.fromarray(img_array)
+    buffer = io.BytesIO()
+    pil_img.save(buffer, format="PNG")
+    gaze_img_encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+    # --- LiDAR ---
+    lidar_pc = agent_input.lidars[-1].lidar_pc
+    lidar_pc = lidar_pc[:, lidar_pc[2, :] > config.lidar_split_height]
+    mask = (
+        (lidar_pc[0, :] >= config.lidar_min_x) & (lidar_pc[0, :] <= config.lidar_max_x) &
+        (lidar_pc[1, :] >= config.lidar_min_y) & (lidar_pc[1, :] <= config.lidar_max_y)
+    )
+    lidar_pc = lidar_pc[:, mask]
+    lidar_list = lidar_pc.T.tolist()
+
+    # --- Ground truth trajectories ---
+    trajectories_tensor = features["trajectories"].cpu().numpy().tolist()
+    true_trajectory = targets["trajectory"].cpu().tolist()
+
+    # --- Filtered agent boxes ---
+    bboxes = targets["agent_states"].cpu().numpy().tolist()
+    bboxes_lb = targets["agent_labels"].cpu().numpy().tolist()
+    bboxes = [box for box, label in zip(bboxes, bboxes_lb) if label]
+
+    # --- Inference ---
+    logger.info("Running inference")
+    feat_copy = {k: v.unsqueeze(0) for k, v in features.items()}
+    agent.eval()
+
+    start = time.perf_counter()
+    with torch.no_grad():
+        outputs = agent.forward(feat_copy)
+    end = time.perf_counter()
+
+    inference_time = end - start  # seconds
+    fps = 1 / inference_time  # frames per second
+    ms = inference_time * 1000  # milliseconds
+
+    logger.info(f"Inference complete: {fps:.1f} FPS | {ms:.1f} ms")
+
+    ego_trajectory = outputs['trajectory'].squeeze(0).detach().cpu().tolist()
+    # --- Package data ---
+    data = {
+        "image": f"data:image/png;base64,{encoded_img}",
+        "gaze_image":f"data:image/png;base64,{gaze_img_encoded}",
+        "trajectories": trajectories_tensor,
+        "ego_trajectory": ego_trajectory,
+        "true_trajectory": true_trajectory,
+        "bboxes": bboxes,
+        "lidar_raw": lidar_list,
+        "fps": fps,
+        "ms": ms
+    }
+
+    logger.info("Returning scenario_data")
+    return jsonify(data)
 
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(cfg: DictConfig):
