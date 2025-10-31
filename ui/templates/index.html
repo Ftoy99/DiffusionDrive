@@ -1,27 +1,75 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Scenario Viewer</title>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <meta charset="utf-8">
+    <title>Scenario Viewer</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+          }
+        }
+    </script>
 </head>
 <body class="h-screen flex">
+<div id="content" class="flex-1 p-2 bg-gray-800 text-white overflow-auto">
+    <div class="h-screen flex">
+        <div class="w-64 bg-gray-900 text-white p-4 flex flex-col">
+            <h3 class="text-lg font-bold mb-4">Inference</h3>
+            <label class="mb-1 font-semibold" for="model-select">Model</label>
+            <select id="model-select"
+                name="model"
+                class="w-full p-2 mb-4 rounded bg-gray-700 text-white"
+                hx-get="/models"
+                hx-trigger="load"
+                hx-target="#model-select"
+                hx-swap="innerHTML"
+                hx-on="change: (async () => {
+                    const model = this.value;
+                    if (!model) return;
+                    const formData = new FormData();
+                    formData.append('model', model);
+                    await fetch('/model_select', { method: 'POST', body: formData });
+                    window.initScene();
+                })()">
+                <option value="">-- choose --</option>
+            </select>
 
-  <!-- Sidebar -->
-  <div class="w-32 bg-gray-900 text-white h-screen flex flex-col">
-    <button class="p-2 hover:bg-gray-600"
-            hx-get="/dataset" hx-target="#content">Dataset Viewer</button>
-    <button class="p-2 hover:bg-gray-600"
-            hx-get="/inference" hx-target="#content">Inference</button>
-  </div>
-
-
-  <!-- Main content / viewer -->
-  <div id="content" class="flex-1 p-2 bg-gray-800 text-white overflow-auto">
-    <!-- HTMX content will load here -->
-  </div>
-
+            <label class="mb-1 font-semibold" for="scenario-select">Scenario</label>
+            <select id="scenario-select"
+                    name="scenario"
+                    class="w-full p-2 mb-4 rounded bg-gray-700 text-white"
+                    hx-get="/scenarios"
+                    hx-trigger="load"
+                    hx-target="#scenario-select"
+                    hx-swap="innerHTML"
+                    hx-on="change: (async () => {
+            const token = this.value;
+            if (!token) return;
+            await fetch(`/scenario?scenario=${token}`);
+            window.initScene();
+            })()">
+                <option value="">-- choose --</option>
+            </select>
+        </div>
+        <div id="viewer" class="relative w-full h-full">
+        </div>
+        <div class="absolute top-2 right-2 flex flex-col gap-2 z-50">
+            <div id="fps-counter"
+                 class="bg-black/70 text-green-400 font-mono px-3 py-1 rounded text-sm">
+                FPS: -- | ms: --
+            </div>
+            <img id="camera-window"
+                 class="w-64 border-2 border-white bg-black object-contain"/>
+            <img id="gaze-window"
+                 class="w-64 border-2 border-green-400 bg-black object-contain"/>
+        </div>
+        <script type="module" src="{{ url_for('static', filename='viewer.js') }}"></script>
+    </div>
+</div>
 
 </body>
 </html>
