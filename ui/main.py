@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 import hydra
+import torch
 from PIL import Image
 from hydra.utils import instantiate
 from omegaconf import DictConfig
@@ -187,25 +188,6 @@ def semantic_png():
     buffer.seek(0)
     return send_file(buffer, mimetype='image/png')
 
-@app.route("/run_inference", methods=["POST"])
-def run_inference():
-    global scene_loader
-    global agent
-    global features
-    global targets
-    global outputs
-    feat_copy = features
-    model = request.form.get("model")
-    if agent.checkpoint_path is not model:
-        logger.info(f"Loading from pretrained")
-        agent.checkpoint_path = model
-        agent.initialize()
-        agent.eval()
-
-    feat_copy = {k: v.unsqueeze(0) for k, v in feat_copy.items()} # Add batch dim
-    outputs = agent.forward(feat_copy)
-    return render_template("inference_results.html")
-
 @app.route("/model_select", methods=["POST"])
 def model_select():
     global agent
@@ -268,7 +250,8 @@ def scenario_data():
     agent.eval()
 
     start = time.perf_counter()
-    outputs = agent.forward(feat_copy)
+    with torch.no_grad():
+        outputs = agent.forward(feat_copy)
     end = time.perf_counter()
 
     inference_time = end - start  # seconds
@@ -286,7 +269,9 @@ def scenario_data():
         "ego_trajectory": ego_trajectory,
         "true_trajectory": true_trajectory,
         "bboxes": bboxes,
-        "lidar_raw": lidar_list
+        "lidar_raw": lidar_list,
+        "fps": fps,
+        "ms": ms
     }
 
     logger.info("Returning scenario_data")

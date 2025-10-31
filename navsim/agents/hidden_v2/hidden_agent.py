@@ -59,7 +59,7 @@ class HiddenAgent(AbstractAgent):
         if self.checkpoint_path:
             print(f"Loading from pretrained {self.checkpoint_path}")
             if torch.cuda.is_available():
-                checkpoint = torch.load(self.checkpoint_path)
+                checkpoint = torch.load(self.checkpoint_path, map_location=torch.device('cuda'))
             else:
                 checkpoint = torch.load(self.checkpoint_path, map_location=torch.device('cpu'))
 
@@ -85,7 +85,7 @@ class HiddenAgent(AbstractAgent):
     def initialize(self) -> None:
         """Inherited, see superclass."""
         if torch.cuda.is_available():
-            state_dict: Dict[str, Any] = torch.load(self.checkpoint_path)["state_dict"]
+            state_dict: Dict[str, Any] = torch.load(self.checkpoint_path,map_location=torch.device("cuda"))["state_dict"]
         else:
             state_dict: Dict[str, Any] = torch.load(self.checkpoint_path, map_location=torch.device("cpu"))[
                 "state_dict"

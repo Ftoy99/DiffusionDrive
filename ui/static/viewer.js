@@ -108,6 +108,12 @@ async function initScene() {
     const gazeEl = document.getElementById('gaze-window');
     gazeEl.src = data.gaze_image;
 
+    // FPS / ms
+    const fpsEl = document.getElementById('fps-counter');
+    if (data.fps !== undefined && data.ms !== undefined) {
+        fpsEl.textContent = `FPS: ${data.fps.toFixed(1)} | ms: ${data.ms.toFixed(1)}`;
+    }
+
     // Handle resize once
     function onResize() {
         camera.aspect = container.clientWidth / container.clientHeight;
