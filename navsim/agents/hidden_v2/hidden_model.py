@@ -132,26 +132,30 @@ class HiddenModel(nn.Module):
             nn.Conv2d(512, config.tf_d_model, 1),  # for 512x5x5
         ])
 
-    def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
+    def forward(self, features: Dict[str, torch.Tensor],gaze_flag=True,neighbours_flag=True,targets: Dict[str, torch.Tensor] = None , ) -> Dict[
         str, torch.Tensor]:
-        drop_prob = 0.15
-        gaze_flag = torch.rand(()) < drop_prob
-        if gaze_flag:
-            print("Training without gaze")
-        # True no gaze
-        # False gaze
-        # gaze_flag = False
+        if self.training:
+            # True gaze
+            # False no gaze
+            drop_prob = 0.15
+            gaze_flag = torch.rand(()) >= drop_prob  # True most of the time, False when dropping
+            if not gaze_flag:
+                print("Training without gaze")
         camera_feature: torch.Tensor = features["camera_feature"]
         lidar_feature: torch.Tensor = features["lidar_feature"]
         gaze_feature: torch.Tensor = features["gaze"]
         trajectories: torch.Tensor = features["trajectories"]
+
+        if not neighbours_flag:
+            trajectories = torch.zeros_like(trajectories)
+
         status_feature: torch.Tensor = features["status_feature"]
 
         batch_size = status_feature.shape[0]
 
         bev_feature_upscale, bev_feature, _ = self._backbone(camera_feature, lidar_feature)
 
-        if not gaze_flag:
+        if gaze_flag:
             gaze_feature_backbone = self._gaze_backbone(
                 gaze_feature)  # 64x72x72 , 64x36x36 , 128x18x18 , 256x9x9, 512x5x5
             tokens = []
@@ -186,7 +190,7 @@ class HiddenModel(nn.Module):
         cross_bev_feature = cross_bev_feature.permute(0, 2, 1).contiguous().view(batch_size, -1, bev_spatial_shape[0],
                                                                                  bev_spatial_shape[1])
 
-        if not gaze_flag:
+        if gaze_flag:
             qformer_q = self._gaze_embedding.weight.unsqueeze(0).expand(gaze_tokens_flat.shape[0], -1,
                                                                         -1)  # [64, 5, 256]
             gaze_query = self._qformer(
@@ -611,9 +615,7 @@ class TrajectoryHead(nn.Module):
         # prepend always-good ego
         good = torch.zeros(mask.shape[0], 1, device=mask.device, dtype=mask.dtype)  # [B, 1]
         noisy_traj_points_mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1]
-        # print(f"noisy_traj_points_mask.shape {noisy_traj_points_mask.shape}")
-        # print(noisy_traj_points_mask)
-        # print(f"traj_anchors.shape {traj_anchors.shape}")
+
         # 1. add truncated noise to the plan anchor
         plan_anchor = self.plan_anchor.unsqueeze(0).repeat(bs, 1, 1, 1)
 
@@ -632,21 +634,21 @@ class TrajectoryHead(nn.Module):
             noise=noise,
             timesteps=timesteps,
         ).float()
-        # print(f"noisy_traj_points.shape {noisy_traj_points.shape}")
+
         noisy_traj_points = torch.clamp(noisy_traj_points, min=-1, max=1)
         noisy_traj_points = self.denorm_odo(noisy_traj_points)
-        # print(f"noisy_traj_points.shape after denorm_odo {noisy_traj_points.shape}")
+
         ego_fut_mode = noisy_traj_points.shape[2]
         ego_fut_neighbours = noisy_traj_points.shape[1]
-        # print(f"ego_fut_mode {ego_fut_mode}")
+
         # 2. proj noisy_traj_points to the query
         traj_pos_embed = gen_sineembed_for_position(noisy_traj_points, hidden_dim=64)
-        # print(f"traj_pos_embed {traj_pos_embed.shape}")
+
         traj_pos_embed = traj_pos_embed.flatten(-2)
-        # print(f"traj_pos_embed after flatten {traj_pos_embed.shape}")  # ([64, 16, 20, 512])
+
         traj_feature = self.plan_anchor_encoder(traj_pos_embed)
         traj_feature = traj_feature.view(bs, ego_fut_neighbours, ego_fut_mode, -1)
-        # print(f"traj_feature {traj_feature.shape}")
+
         # 3. embed the timesteps
         time_embed = self.time_mlp(timesteps)
         time_embed = time_embed.view(bs, 1, -1)
@@ -707,12 +709,7 @@ class TrajectoryHead(nn.Module):
         good = torch.zeros(mask.shape[0], 1, device=mask.device, dtype=mask.dtype)  # [B, 1]
         noisy_traj_points_mask = torch.cat([good, mask], dim=1)  # [B, neighbors+1]
 
-        # print(f"plan_anchor.shape {plan_anchor.shape}")
         img = self.norm_odo(plan_anchor)
-
-        # #Noise for only ego agent
-        # noise = torch.zeros_like(img) # Start from all zeroes
-        # noise[:, 0, :, :, :] = torch.randn_like(img[:, 0, :, :, :])
 
         # #Noise for all
         noise = torch.randn(img.shape, device=device)  # Start from all zeroes

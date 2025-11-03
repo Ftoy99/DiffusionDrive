@@ -104,12 +104,12 @@ class HiddenAgent(AbstractAgent):
         """Inherited, see superclass."""
         return [HiddenFeatureBuilder(config=self._config)]
 
-    def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None) -> Dict[
+    def forward(self, features: Dict[str, torch.Tensor], targets: Dict[str, torch.Tensor] = None,**kwargs) -> Dict[
         str, torch.Tensor]:
         """Inherited, see superclass."""
         if targets is not None:
             targets["neighbour_trajectories"] = features["trajectories"]
-        return self._hidden_model(features, targets=targets)
+        return self._hidden_model(features,targets=targets,**kwargs)
 
     def compute_loss(
             self,

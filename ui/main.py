@@ -36,6 +36,9 @@ features = None
 targets = None
 agent_input = None
 
+# --- Global condition flags ---
+use_neighbors = True
+use_gaze = True
 
 @app.route("/")
 def index():
@@ -203,6 +206,20 @@ def model_select():
         agent.eval()
     return Response(status=200)
 
+@app.route("/conditions", methods=["POST"])
+def conditions():
+    global use_neighbors, use_gaze
+    data = request.form
+
+    if "use_neighbors" in data:
+        use_neighbors = data.get("use_neighbors") in ["true", "True", "1", "on"]
+        logger.info(f"Set use_neighbors = {use_neighbors}")
+
+    if "use_gaze" in data:
+        use_gaze = data.get("use_gaze") in ["true", "True", "1", "on"]
+        logger.info(f"Set use_gaze = {use_gaze}")
+
+    return Response(status=200)
 
 @app.route("/scenario_data", methods=["GET"])
 def scenario_data():
@@ -251,7 +268,7 @@ def scenario_data():
 
     start = time.perf_counter()
     with torch.no_grad():
-        outputs = agent.forward(feat_copy)
+        outputs = agent.forward(feat_copy, gaze_flag=use_gaze, neighbours_flag=use_neighbors)
     end = time.perf_counter()
 
     inference_time = end - start  # seconds

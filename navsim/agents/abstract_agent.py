@@ -39,7 +39,7 @@ class AbstractAgent(torch.nn.Module, ABC):
         """
         pass
 
-    def forward(self, features: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def forward(self, features: Dict[str, torch.Tensor], **kwargs) -> Dict[str, torch.Tensor]:
         """
         Forward pass of the agent.
         :param features: Dictionary of features.
