@@ -211,20 +211,18 @@ def conditions():
     global use_neighbors, use_gaze
     data = request.form
 
-    if "use_neighbors" in data:
-        use_neighbors = data.get("use_neighbors") in ["true", "True", "1", "on"]
-        logger.info(f"Set use_neighbors = {use_neighbors}")
+    use_neighbors = data.get("use_neighbors", "false") in ["true", "True", "1", "on"]
+    logger.info(f"Set use_neighbors = {use_neighbors}")
 
-    if "use_gaze" in data:
-        use_gaze = data.get("use_gaze") in ["true", "True", "1", "on"]
-        logger.info(f"Set use_gaze = {use_gaze}")
+    use_gaze = data.get("use_gaze", "false") in ["true", "True", "1", "on"]
+    logger.info(f"Set use_gaze = {use_gaze}")
 
     return Response(status=200)
 
 @app.route("/scenario_data", methods=["GET"])
 def scenario_data():
     logger.info("Get scenario_data")
-    global features, targets, agent_input, agent, outputs
+    global features, targets, agent_input, agent, outputs , use_gaze , use_neighbors
     config = HiddenConfig()
 
     # --- Camera image ---
@@ -274,16 +272,20 @@ def scenario_data():
     inference_time = end - start  # seconds
     fps = 1 / inference_time  # frames per second
     ms = inference_time * 1000  # milliseconds
-
     logger.info(f"Inference complete: {fps:.1f} FPS | {ms:.1f} ms")
-
     ego_trajectory = outputs['trajectory'].squeeze(0).detach().cpu().tolist()
+
+    with torch.no_grad():
+        feat_copy = {k: v.unsqueeze(0) for k, v in features.items()}
+        outputs = agent.forward(feat_copy, gaze_flag=False, neighbours_flag=False)
+    ego_trajectory_no_unreliables = outputs['trajectory'].squeeze(0).detach().cpu().tolist()
     # --- Package data ---
     data = {
         "image": f"data:image/png;base64,{encoded_img}",
         "gaze_image":f"data:image/png;base64,{gaze_img_encoded}",
         "trajectories": trajectories_tensor,
         "ego_trajectory": ego_trajectory,
+        "ego_trajectory_no_unreliables": ego_trajectory_no_unreliables,
         "true_trajectory": true_trajectory,
         "bboxes": bboxes,
         "lidar_raw": lidar_list,

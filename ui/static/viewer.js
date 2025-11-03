@@ -82,7 +82,7 @@ async function initScene() {
     data.trajectories.forEach(traj => makeLine(traj, 0x00ff00, 1));
     makeLine(data.true_trajectory, 0xff69b4, 2);
     makeLine(data.ego_trajectory, 0x0000ff, 0);
-
+    makeLine(data.ego_trajectory_no_unreliables, 0x00FFFF, 1);
     // Boxes using InstancedMesh
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
     const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.3 });
