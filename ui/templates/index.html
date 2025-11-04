@@ -40,34 +40,29 @@
             <h3 class="text-lg font-bold mb-2">Conditions</h3>
             <div class="flex flex-col space-y-2 mb-4">
                 <label class="inline-flex items-center">
-                  <input type="hidden" name="use_neighbors" value="false">
-                  <input type="checkbox"
-                         name="use_neighbors"
-                         value="true"
-                         checked
-                         hx-post="/conditions"
-                         hx-trigger="change"
-                         hx-vals="{'use_neighbors': this.checked}"
-                         hx-swap="none"
-                         class="mr-2">
-                  Neighbor Trajectories
+                    <input type="checkbox"
+                           name="use_neighbors"
+                           checked
+                           hx-post="/use_neighbors"
+                           hx-trigger="change"
+                           hx-vals="{'use_neighbors': this.checked}"
+                           hx-swap="none"
+                           class="mr-2">
+                    Neighbor Trajectories
                 </label>
 
                 <label class="inline-flex items-center">
-                  <input type="hidden" name="use_gaze" value="false">
-                  <input type="checkbox"
-                         name="use_gaze"
-                         value="true"
-                         checked
-                         hx-post="/conditions"
-                         hx-trigger="change"
-                         hx-vals="{'use_gaze': this.checked}"
-                         hx-swap="none"
-                         class="mr-2">
-                  Gaze
+                    <input type="checkbox"
+                           name="use_gaze"
+                           checked
+                           hx-post="/use_gaze"
+                           hx-trigger="change"
+                           hx-vals="{'use_gaze': this.checked}"
+                           hx-swap="none"
+                           class="mr-2">
+                    Gaze
                 </label>
             </div>
-
             <label class="mb-1 font-semibold" for="scenario-select">Scenario</label>
             <select id="scenario-select"
                     name="scenario"
@@ -84,6 +79,18 @@
             })()">
                 <option value="">-- choose --</option>
             </select>
+            <button
+              class="w-full p-2 mt-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+              id="run-inference-btn"
+            >
+              Run Inference
+            </button>
+
+            <script>
+            document.getElementById('run-inference-btn').addEventListener('click', () => {
+              window.initScene();
+            });
+            </script>
         </div>
         <div id="viewer" class="relative w-full h-full">
         </div>

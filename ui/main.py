@@ -206,17 +206,18 @@ def model_select():
         agent.eval()
     return Response(status=200)
 
-@app.route("/conditions", methods=["POST"])
-def conditions():
-    global use_neighbors, use_gaze
-    data = request.form
-
-    use_neighbors = data.get("use_neighbors", "false") in ["true", "True", "1", "on"]
+@app.route("/use_neighbors", methods=["POST"])
+def use_neighbors_endpoint():
+    global use_neighbors
+    use_neighbors = request.form.get("use_neighbors", "false") in ["true", "True", "1", "on"]
     logger.info(f"Set use_neighbors = {use_neighbors}")
+    return Response(status=200)
 
-    use_gaze = data.get("use_gaze", "false") in ["true", "True", "1", "on"]
+@app.route("/use_gaze", methods=["POST"])
+def use_gaze_endpoint():
+    global use_gaze
+    use_gaze = request.form.get("use_gaze", "false") in ["true", "True", "1", "on"]
     logger.info(f"Set use_gaze = {use_gaze}")
-
     return Response(status=200)
 
 @app.route("/scenario_data", methods=["GET"])

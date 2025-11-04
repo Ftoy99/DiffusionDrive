@@ -4,9 +4,27 @@ import { Line2 } from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/l
 import { LineMaterial } from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/lines/LineGeometry.js';
 
+// 🔹 declare globals safely
+let renderer = null;
+let resizeHandler = null;
+let animationId = null;
+
 async function initScene() {
     const container = document.getElementById('viewer');
     container.innerHTML = '';
+
+    // 🔹 cleanup old context safely
+    if (animationId) cancelAnimationFrame(animationId);
+    if (resizeHandler) {
+        window.removeEventListener('resize', resizeHandler);
+        resizeHandler = null;
+    }
+    if (renderer) {
+        renderer.dispose?.();
+        renderer.forceContextLoss?.();
+        renderer.domElement.remove();
+        renderer = null;
+    }
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
@@ -17,21 +35,24 @@ async function initScene() {
 
     // Camera & renderer
     const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(20, 20, 20);
+    camera.position.set(-15, 15, 15);
     camera.lookAt(scene.position);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio * 0.75);
     renderer.shadowMap.enabled = false;
     renderer.outputEncoding = THREE.LinearEncoding;
     container.appendChild(renderer.domElement);
 
-    window.addEventListener('resize', () => {
+    // 🔹 Resize handler (remove old one first)
+    resizeHandler = () => {
         camera.aspect = container.clientWidth / container.clientHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(container.clientWidth, container.clientHeight);
-    });
+    };
+    window.addEventListener('resize', resizeHandler);
+    resizeHandler();
 
     // OrbitControls
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -124,15 +145,13 @@ async function initScene() {
     window.addEventListener('resize', onResize);
     onResize();
 
-    // Animation loop
+    // 🔹 Animation loop (store frame ID for cancelation)
     function animationLoop() {
         controls.update();
-        lineMaterials.forEach(m => m.resolution.set(window.innerWidth, window.innerHeight));
         renderer.render(scene, camera);
-        requestAnimationFrame(animationLoop);
+        animationId = requestAnimationFrame(animationLoop);
     }
-
-    renderer.setAnimationLoop(animationLoop);
+    animationLoop();
 }
 
 window.initScene = initScene;
