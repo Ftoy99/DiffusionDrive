@@ -219,17 +219,48 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         annotations = scene.frames[frame_idx].annotations
         ego_pose = StateSE2(*scene.frames[frame_idx].ego_status.ego_pose)
 
-        agent_states, agent_labels = self._compute_agent_targets(annotations)
+        traffic_light_state = self._compute_light_state(ego_pose, frame_idx, scene)
+
+        vehicle_agent_states, vehicle_agent_labels = self._compute_agent_targets(annotations,"vehicle")
+        pedestrian_agent_states, pedestrian_agent_labels = self._compute_agent_targets(annotations,"pedestrian")
         bev_semantic_map = self._compute_bev_semantic_map(annotations, scene.map_api, ego_pose)
 
         return {
             "trajectory": trajectory,
-            "agent_states": agent_states,
-            "agent_labels": agent_labels,
+            "vehicle_agent_states": vehicle_agent_states,
+            "vehicle_agent_labels": vehicle_agent_labels,
+            "pedestrian_agent_states": pedestrian_agent_states,
+            "pedestrian_agent_labels": pedestrian_agent_labels,
+            "traffic_light_state": traffic_light_state,
             "bev_semantic_map": bev_semantic_map,
         }
 
-    def _compute_agent_targets(self, annotations: Annotations) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _compute_light_state(self, ego_pose, frame_idx, scene):
+        traffic_light_state = 0  # default: no stop
+        ego_point = ego_pose.point
+        if scene.frames[frame_idx].traffic_lights:
+            # Loop over all traffic lights
+            for tl in scene.frames[frame_idx].traffic_lights:
+                id, state = tl
+                lane_connector = scene.map_api.get_map_object(str(id), SemanticMapLayer.LANE_CONNECTOR)
+
+                if not lane_connector:
+                    continue
+
+                # Find nearest ego lane
+                ego_lane, dist = scene.map_api.get_distance_to_nearest_map_object(ego_point, SemanticMapLayer.LANE)
+                if not ego_lane:
+                    continue
+
+                # Check if ego lane is part of connector
+                if ego_lane in [l.id for l in lane_connector.incoming_edges]:
+                    if state:
+                        traffic_light_state = 1
+                        break  # no need to check further, ego must stop
+        traffic_light_state = torch.tensor([traffic_light_state], dtype=torch.float)
+        return traffic_light_state
+
+    def _compute_agent_targets(self, annotations: Annotations , agent_class:str) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Extracts 2D agent bounding boxes in ego coordinates
         :param annotations: annotation dataclass
@@ -251,7 +282,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
                 box[BoundingBoxIndex.WIDTH],
             )
 
-            if name == "vehicle" and _xy_in_lidar(box_x, box_y, self._config):
+            if name == agent_class and _xy_in_lidar(box_x, box_y, self._config):
                 agent_states_list.append(np.array([box_x, box_y, box_heading, box_length, box_width], dtype=np.float32))
 
         agents_states_arr = np.array(agent_states_list)

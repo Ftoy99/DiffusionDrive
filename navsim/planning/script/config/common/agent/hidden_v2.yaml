@@ -2,7 +2,7 @@ _target_: navsim.agents.hidden_v2.hidden_agent.HiddenAgent
 _convert_: 'all'
 
 config:
-  _target_: navsim.agents.hidden.hidden_config.HiddenConfig
+  _target_: navsim.agents.hidden_v2.hidden_config.HiddenConfig
   _convert_: 'all'
 
   trajectory_sampling:

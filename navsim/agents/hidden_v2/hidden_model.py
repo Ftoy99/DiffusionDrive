@@ -96,6 +96,12 @@ class HiddenModel(nn.Module):
             ),
         )
 
+        self._traffic_light_head = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),  # pool BEV to 1x1
+            nn.Flatten(),  # (B, C)
+            nn.Linear(config.bev_features_channels, 1)  # output single logit per traffic light
+        )
+
         tf_decoder_layer = nn.TransformerDecoderLayer(
             d_model=config.tf_d_model,
             nhead=config.tf_num_head,
@@ -105,10 +111,19 @@ class HiddenModel(nn.Module):
         )
 
         self._tf_decoder = nn.TransformerDecoder(tf_decoder_layer, config.tf_num_layers)
-        self._agent_head = AgentHead(
+
+        self._vehicle_agent_head = AgentHead(
             num_agents=config.num_bounding_boxes,
             d_ffn=config.tf_d_ffn,
             d_model=config.tf_d_model,
+            agent_class="vehicle"
+        )
+
+        self._pedestrian_agent_head = AgentHead(
+            num_agents=config.num_bounding_boxes,
+            d_ffn=config.tf_d_ffn,
+            d_model=config.tf_d_model,
+            agent_class="pedestrian"
         )
 
         self._trajectory_head = TrajectoryHead(
@@ -205,18 +220,25 @@ class HiddenModel(nn.Module):
         query_out = self._tf_decoder(query, keyval)
 
         bev_semantic_map = self._bev_semantic_head(bev_feature_upscale)
+        traffic_light = self._traffic_light_head(bev_feature_upscale)  # (B, 1)
+
         trajectory_query, agents_query = query_out.split(self._query_splits, dim=1)
 
-        output: Dict[str, torch.Tensor] = {"bev_semantic_map": bev_semantic_map}
+        # initialize output with both BEV map and traffic light logit
+        output: Dict[str, torch.Tensor] = {
+            "bev_semantic_map": bev_semantic_map,
+            "traffic_light_state": traffic_light
+        }
 
         trajectory = self._trajectory_head(trajectory_query, agents_query, cross_bev_feature, bev_spatial_shape,
                                            status_encoding[:, None], gaze_query, trajectories, targets=targets,
                                            global_img=None)
-        # print(f"Trajectory shape {trajectory.keys()}")
         output.update(trajectory)
 
-        agents = self._agent_head(agents_query)
-        output.update(agents)
+        vehicles = self._vehicle_agent_head(agents_query)
+        pedestrians = self._pedestrian_agent_head(agents_query)
+        output.update(vehicles)
+        output.update(pedestrians)
 
         return output
 
@@ -229,6 +251,7 @@ class AgentHead(nn.Module):
             num_agents: int,
             d_ffn: int,
             d_model: int,
+            agent_class
     ):
         """
         Initializes prediction head.
@@ -241,7 +264,7 @@ class AgentHead(nn.Module):
         self._num_objects = num_agents
         self._d_model = d_model
         self._d_ffn = d_ffn
-
+        self.agent_class = agent_class
         self._mlp_states = nn.Sequential(
             nn.Linear(self._d_model, self._d_ffn),
             nn.ReLU(),
@@ -261,7 +284,7 @@ class AgentHead(nn.Module):
 
         agent_labels = self._mlp_label(agent_queries).squeeze(dim=-1)
 
-        return {"agent_states": agent_states, "agent_labels": agent_labels}
+        return {self.agent_class+"_agent_states": agent_states, self.agent_class+"_agent_labels": agent_labels}
 
 
 class DiffMotionPlanningRefinementModule(nn.Module):

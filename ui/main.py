@@ -255,10 +255,20 @@ def scenario_data():
     trajectories_tensor = features["trajectories"].cpu().numpy().tolist()
     true_trajectory = targets["trajectory"].cpu().tolist()
 
-    # --- Filtered agent boxes ---
-    bboxes = targets["agent_states"].cpu().numpy().tolist()
-    bboxes_lb = targets["agent_labels"].cpu().numpy().tolist()
-    bboxes = [box for box, label in zip(bboxes, bboxes_lb) if label]
+    # --- Filtered vehicle agent boxes ---
+    vehicle_bboxes = targets["vehicle_agent_states"].cpu().numpy().tolist()
+    vehicle_bboxes_lb = targets["vehicle_agent_labels"].cpu().numpy().tolist()
+    vehicle_bboxes = [box for box, label in zip(vehicle_bboxes, vehicle_bboxes_lb) if label]
+
+    # --- Filtered vehicle agent boxes ---
+    pedestrian_bboxes = targets["pedestrian_agent_states"].cpu().numpy().tolist()
+    pedestrian_bboxes_lb = targets["pedestrian_agent_labels"].cpu().numpy().tolist()
+    pedestrian_bboxes = [box for box, label in zip(pedestrian_bboxes, pedestrian_bboxes_lb) if label]
+
+    if targets["traffic_light_state"].cpu().numpy()[0] == 0.0:
+        traffic_light = "RED"
+    else:
+        traffic_light = "GREEN"
 
     # --- Inference ---
     logger.info("Running inference")
@@ -288,8 +298,10 @@ def scenario_data():
         "ego_trajectory": ego_trajectory,
         "ego_trajectory_no_unreliables": ego_trajectory_no_unreliables,
         "true_trajectory": true_trajectory,
-        "bboxes": bboxes,
+        "vehicle_bboxes": vehicle_bboxes,
+        "pedestrian_bboxes": pedestrian_bboxes,
         "lidar_raw": lidar_list,
+        "light": traffic_light,
         "fps": fps,
         "ms": ms
     }

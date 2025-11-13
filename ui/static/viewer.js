@@ -105,20 +105,36 @@ async function initScene() {
     makeLine(data.ego_trajectory, 0x0000ff, 0);
     makeLine(data.ego_trajectory_no_unreliables, 0x00FFFF, 1);
     // Boxes using InstancedMesh
-    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-    const boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.3 });
-    const boxMesh = new THREE.InstancedMesh(boxGeo, boxMat, data.bboxes.length);
-    const dummy = new THREE.Object3D();
+    const vehicle_boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const vehicle_boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.3 });
+    const vehicle_boxMesh = new THREE.InstancedMesh(vehicle_boxGeo, vehicle_boxMat, data.vehicle_bboxes.length);
+    const vehicle_dummy = new THREE.Object3D();
 
-    data.bboxes.forEach((box, i) => {
+    data.vehicle_bboxes.forEach((box, i) => {
         const [x, y, heading, length, width] = box;
-        dummy.position.set(x, 0, y);
-        dummy.scale.set(width, 1, length);
-        dummy.rotation.y = -heading + Math.PI / 2;
-        dummy.updateMatrix();
-        boxMesh.setMatrixAt(i, dummy.matrix);
+        vehicle_dummy.position.set(x, 0, y);
+        vehicle_dummy.scale.set(width, 1, length);
+        vehicle_dummy.rotation.y = -heading + Math.PI / 2;
+        vehicle_dummy.updateMatrix();
+        vehicle_boxMesh.setMatrixAt(i, vehicle_dummy.matrix);
     });
-    scene.add(boxMesh);
+    scene.add(vehicle_boxMesh);
+
+    // Boxes using InstancedMesh
+    const pedestrian_boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const pedestrian_boxMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3 });
+    const pedestrian_boxMesh = new THREE.InstancedMesh(pedestrian_boxGeo, pedestrian_boxMat, data.pedestrian_bboxes.length);
+    const pedestrian_dummy = new THREE.Object3D();
+
+    data.pedestrian_bboxes.forEach((box, i) => {
+        const [x, y, heading, length, width] = box;
+        pedestrian_dummy.position.set(x, 0, y);
+        pedestrian_dummy.scale.set(width, 1, length);
+        pedestrian_dummy.rotation.y = -heading + Math.PI / 2;
+        pedestrian_dummy.updateMatrix();
+        pedestrian_boxMesh.setMatrixAt(i, pedestrian_dummy.matrix);
+    });
+    scene.add(pedestrian_boxMesh);
 
 
     // Camera window UI
@@ -132,7 +148,7 @@ async function initScene() {
     // FPS / ms
     const fpsEl = document.getElementById('fps-counter');
     if (data.fps !== undefined && data.ms !== undefined) {
-        fpsEl.textContent = `FPS: ${data.fps.toFixed(1)} | ms: ${data.ms.toFixed(1)}`;
+        fpsEl.textContent = `FPS: ${data.fps.toFixed(1)} | ms: ${data.ms.toFixed(1)} | LIGHT: ${data.light}`;
     }
 
     // Handle resize once

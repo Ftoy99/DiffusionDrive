@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Tuple, List
+from typing import Tuple
 
 import numpy as np
 from nuplan.common.maps.abstract_map import SemanticMapLayer
@@ -86,6 +86,7 @@ class HiddenConfig:
     diff_loss_weight: float = 20.0
     agent_class_weight: float = 10.0
     agent_box_weight: float = 1.0
+    traffic_light_weight: float = 1.0
     bev_semantic_weight: float = 14.0
     use_ema: bool = False
     # BEV mapping

@@ -25,7 +25,14 @@ def hidden_loss(
     else:
         trajectory_loss = F.l1_loss(predictions["trajectory"], targets["trajectory"])
 
-    agent_class_loss, agent_box_loss = _agent_loss(targets, predictions, config)
+    vehicle_agent_class_loss, vehicle_agent_box_loss = _agent_loss(targets, predictions, config,"vehicle")
+    pedestrian_agent_class_loss, pedestrian_agent_box_loss = _agent_loss(targets, predictions, config,"pedestrian")
+
+    traffic_light_loss = F.binary_cross_entropy_with_logits(
+        predictions["traffic_light_state"].squeeze(-1).float(),  # shape (B,)
+        targets["traffic_light_state"].squeeze(1).float()  # 0 or 1
+    )
+
     bev_semantic_loss = F.cross_entropy(
         predictions["bev_semantic_map"], targets["bev_semantic_map"].long()
     )
@@ -36,17 +43,24 @@ def hidden_loss(
     loss = (
         config.trajectory_weight * trajectory_loss
         + config.diff_loss_weight * diffusion_loss
-        + config.agent_class_weight * agent_class_loss
-        + config.agent_box_weight * agent_box_loss
+        + config.agent_class_weight * vehicle_agent_class_loss
+        + config.agent_box_weight * vehicle_agent_box_loss
+        + config.agent_class_weight * pedestrian_agent_class_loss
+        + config.agent_box_weight * pedestrian_agent_box_loss
         + config.bev_semantic_weight * bev_semantic_loss
+        + config.traffic_light_weight * traffic_light_loss
+
     )
     loss_dict = {
         'loss': loss,
         'trajectory_loss': config.trajectory_weight*trajectory_loss,
         'diffusion_loss': config.diff_loss_weight*diffusion_loss,
-        'agent_class_loss': config.agent_class_weight*agent_class_loss,
-        'agent_box_loss': config.agent_box_weight*agent_box_loss,
-        'bev_semantic_loss': config.bev_semantic_weight*bev_semantic_loss
+        'vehicle_agent_class_loss': config.agent_class_weight*vehicle_agent_class_loss,
+        'vehicle_agent_box_loss': config.agent_box_weight*vehicle_agent_box_loss,
+        'pedestrian_agent_class_loss': config.agent_class_weight * vehicle_agent_class_loss,
+        'pedestrian_agent_box_loss': config.agent_box_weight * vehicle_agent_box_loss,
+        'bev_semantic_loss': config.bev_semantic_weight*bev_semantic_loss,
+        'traffic_light_loss': config.traffic_light_weight*traffic_light_loss
     }
     if "trajectory_loss_dict" in predictions:
         trajectory_loss_dict = predictions["trajectory_loss_dict"]
@@ -56,7 +70,7 @@ def hidden_loss(
 
 
 def _agent_loss(
-    targets: Dict[str, torch.Tensor], predictions: Dict[str, torch.Tensor], config: HiddenConfig
+    targets: Dict[str, torch.Tensor], predictions: Dict[str, torch.Tensor], config: HiddenConfig, agent_class: str
 ):
     """
     Hungarian matching loss for agent detection
@@ -66,8 +80,8 @@ def _agent_loss(
     :return: detection loss
     """
 
-    gt_states, gt_valid = targets["agent_states"], targets["agent_labels"]
-    pred_states, pred_logits = predictions["agent_states"], predictions["agent_labels"]
+    gt_states, gt_valid = targets[agent_class+"_agent_states"], targets[agent_class+"_agent_labels"]
+    pred_states, pred_logits = predictions[agent_class+"_agent_states"], predictions[agent_class+"_agent_labels"]
 
     if config.latent:
         rad_to_ego = torch.arctan2(
