@@ -6,8 +6,6 @@ import numpy as np
 import torch
 import pickle
 
-from navsim.agents.hidden_v2.hidden_config import HiddenConfig
-
 def draw_bev(features, ego_fut_trajs_rel, trajectories=None, boxes=None):
     bev_img_draw = features[0, :, :]  # (H,W)
     bev_img_draw = (bev_img_draw * 255).to(torch.uint8).cpu().numpy()

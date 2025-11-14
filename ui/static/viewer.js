@@ -104,15 +104,16 @@ async function initScene() {
     makeLine(data.true_trajectory, 0xff69b4, 2);
     makeLine(data.ego_trajectory, 0x0000ff, 0);
     makeLine(data.ego_trajectory_no_unreliables, 0x00FFFF, 1);
+
     // Boxes using InstancedMesh
     const vehicle_boxGeo = new THREE.BoxGeometry(1, 1, 1);
-    const vehicle_boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.3 });
+    const vehicle_boxMat = new THREE.MeshBasicMaterial({ color: 0xff69b4, transparent: true, opacity: 0.3 });
     const vehicle_boxMesh = new THREE.InstancedMesh(vehicle_boxGeo, vehicle_boxMat, data.vehicle_bboxes.length);
     const vehicle_dummy = new THREE.Object3D();
 
     data.vehicle_bboxes.forEach((box, i) => {
         const [x, y, heading, length, width] = box;
-        vehicle_dummy.position.set(x, 0, y);
+        vehicle_dummy.position.set(x, 1, y);
         vehicle_dummy.scale.set(width, 1, length);
         vehicle_dummy.rotation.y = -heading + Math.PI / 2;
         vehicle_dummy.updateMatrix();
@@ -122,13 +123,13 @@ async function initScene() {
 
     // Boxes using InstancedMesh
     const pedestrian_boxGeo = new THREE.BoxGeometry(1, 1, 1);
-    const pedestrian_boxMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3 });
+    const pedestrian_boxMat = new THREE.MeshBasicMaterial({ color: 0xff69b4, transparent: true, opacity: 0.3 });
     const pedestrian_boxMesh = new THREE.InstancedMesh(pedestrian_boxGeo, pedestrian_boxMat, data.pedestrian_bboxes.length);
     const pedestrian_dummy = new THREE.Object3D();
 
     data.pedestrian_bboxes.forEach((box, i) => {
         const [x, y, heading, length, width] = box;
-        pedestrian_dummy.position.set(x, 0, y);
+        pedestrian_dummy.position.set(x, 1, y);
         pedestrian_dummy.scale.set(width, 1, length);
         pedestrian_dummy.rotation.y = -heading + Math.PI / 2;
         pedestrian_dummy.updateMatrix();
@@ -136,6 +137,37 @@ async function initScene() {
     });
     scene.add(pedestrian_boxMesh);
 
+    // Pred Boxes using InstancedMesh
+    const pred_vehicle_boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const pred_vehicle_boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.3 });
+    const pred_vehicle_boxMesh = new THREE.InstancedMesh(pred_vehicle_boxGeo, pred_vehicle_boxMat, data.pred_vehicle_bboxes.length);
+    const pred_vehicle_dummy = new THREE.Object3D();
+
+    data.pred_vehicle_bboxes.forEach((box, i) => {
+        const [x, y, heading, length, width] = box;
+        pred_vehicle_dummy.position.set(x, 0, y);
+        pred_vehicle_dummy.scale.set(width, 1, length);
+        pred_vehicle_dummy.rotation.y = -heading + Math.PI / 2;
+        pred_vehicle_dummy.updateMatrix();
+        pred_vehicle_boxMesh.setMatrixAt(i, pred_vehicle_dummy.matrix);
+    });
+    scene.add(pred_vehicle_boxMesh);
+
+    // Pred Boxes using InstancedMesh
+    const pred_pedestrian_boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const pred_pedestrian_boxMat = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.3 });
+    const pred_pedestrian_boxMesh = new THREE.InstancedMesh(pred_pedestrian_boxGeo, pred_pedestrian_boxMat, data.pred_pedestrian_bboxes.length);
+    const pred_pedestrian_dummy = new THREE.Object3D();
+
+    data.pred_pedestrian_bboxes.forEach((box, i) => {
+        const [x, y, heading, length, width] = box;
+        pred_pedestrian_dummy.position.set(x, 0, y);
+        pred_pedestrian_dummy.scale.set(width, 1, length);
+        pred_pedestrian_dummy.rotation.y = -heading + Math.PI / 2;
+        pred_pedestrian_dummy.updateMatrix();
+        pred_pedestrian_boxMesh.setMatrixAt(i, pred_pedestrian_dummy.matrix);
+    });
+    scene.add(pred_pedestrian_boxMesh);
 
     // Camera window UI
     const cameraEl = document.getElementById('camera-window');
@@ -145,10 +177,24 @@ async function initScene() {
     const gazeEl = document.getElementById('gaze-window');
     gazeEl.src = data.gaze_image;
 
+    // Semantic window UI
+    const semanticEl = document.getElementById('semantic-window');
+    semanticEl.src = data.semantic;
+
+    // Pred Semantic window UI
+    const predSemanticEl = document.getElementById('pred_semantic-window');
+    predSemanticEl.src = data.pred_semantic;
+
     // FPS / ms
     const fpsEl = document.getElementById('fps-counter');
     if (data.fps !== undefined && data.ms !== undefined) {
-        fpsEl.textContent = `FPS: ${data.fps.toFixed(1)} | ms: ${data.ms.toFixed(1)} | LIGHT: ${data.light}`;
+        fpsEl.textContent = `FPS: ${data.fps.toFixed(1)} | ms: ${data.ms.toFixed(1)}`;
+    }
+
+    // FPS / ms
+    const predEl = document.getElementById('pred-counter');
+    if (data.fps !== undefined && data.ms !== undefined) {
+        predEl.textContent = ` LIGHT: ${data.light} | PRED LIGHT: ${data.pred_light}`;
     }
 
     // Handle resize once

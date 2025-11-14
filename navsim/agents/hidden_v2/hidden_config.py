@@ -92,9 +92,10 @@ class HiddenConfig:
     # BEV mapping
     bev_semantic_classes = {
         1: ("polygon", [SemanticMapLayer.LANE, SemanticMapLayer.INTERSECTION]),  # road
-        2: ("polygon", [SemanticMapLayer.WALKWAYS]),  # walkways
-        3: ("linestring", [SemanticMapLayer.LANE, SemanticMapLayer.LANE_CONNECTOR]),  # centerline
-        4: (
+        1: ("polygon", [SemanticMapLayer.CROSSWALK]),  # road
+        3: ("polygon", [SemanticMapLayer.WALKWAYS]),  # walkways
+        4: ("linestring", [SemanticMapLayer.LANE, SemanticMapLayer.LANE_CONNECTOR]),  # centerline
+        5: (
             "box",
             [
                 TrackedObjectType.CZONE_SIGN,
@@ -103,8 +104,8 @@ class HiddenConfig:
                 TrackedObjectType.GENERIC_OBJECT,
             ],
         ),  # static_objects
-        5: ("box", [TrackedObjectType.VEHICLE]),  # vehicles
-        6: ("box", [TrackedObjectType.PEDESTRIAN]),  # pedestrians
+        6: ("box", [TrackedObjectType.VEHICLE]),  # vehicles
+        7: ("box", [TrackedObjectType.PEDESTRIAN]),  # pedestrians
     }
 
     bev_pixel_width: int = lidar_resolution_width

@@ -1,5 +1,7 @@
 import base64
+import gzip
 import io
+import json
 import logging
 import time
 from pathlib import Path
@@ -16,8 +18,9 @@ from navsim.agents.abstract_agent import AbstractAgent
 from navsim.agents.hidden_v2.hidden_config import HiddenConfig
 from navsim.common.dataclasses import SceneFilter
 from navsim.common.dataloader import SceneLoader
-from test.visualization import draw_bev, draw_semantic
 import os
+
+from ui.visualization import img_to_base64, draw_semantic
 
 CHECKPOINT_ROOT = "/mnt/ds/navsim-main/exp"
 logger = logging.getLogger(__name__)
@@ -246,7 +249,7 @@ def scenario_data():
     lidar_pc = lidar_pc[:, lidar_pc[2, :] > config.lidar_split_height]
     mask = (
         (lidar_pc[0, :] >= config.lidar_min_x) & (lidar_pc[0, :] <= config.lidar_max_x) &
-        (lidar_pc[1, :] >= config.lidar_min_y) & (lidar_pc[1, :] <= config.lidar_max_y)
+        (lidar_pc[1, :] >= config.lidar_min_y) & (lidar_pc[1, :] <= 16)
     )
     lidar_pc = lidar_pc[:, mask]
     lidar_list = lidar_pc.T.tolist()
@@ -255,20 +258,20 @@ def scenario_data():
     trajectories_tensor = features["trajectories"].cpu().numpy().tolist()
     true_trajectory = targets["trajectory"].cpu().tolist()
 
-    # --- Filtered vehicle agent boxes ---
+    # --- Target vehicle agent boxes ---
     vehicle_bboxes = targets["vehicle_agent_states"].cpu().numpy().tolist()
     vehicle_bboxes_lb = targets["vehicle_agent_labels"].cpu().numpy().tolist()
     vehicle_bboxes = [box for box, label in zip(vehicle_bboxes, vehicle_bboxes_lb) if label]
 
-    # --- Filtered vehicle agent boxes ---
+    # --- Target pedestrian agent boxes ---
     pedestrian_bboxes = targets["pedestrian_agent_states"].cpu().numpy().tolist()
     pedestrian_bboxes_lb = targets["pedestrian_agent_labels"].cpu().numpy().tolist()
     pedestrian_bboxes = [box for box, label in zip(pedestrian_bboxes, pedestrian_bboxes_lb) if label]
 
-    if targets["traffic_light_state"].cpu().numpy()[0] == 0.0:
-        traffic_light = "RED"
-    else:
+    if targets["traffic_light_state"].cpu().int().numpy()[0] == 0:
         traffic_light = "GREEN"
+    else:
+        traffic_light = "RED"
 
     # --- Inference ---
     logger.info("Running inference")
@@ -286,10 +289,29 @@ def scenario_data():
     logger.info(f"Inference complete: {fps:.1f} FPS | {ms:.1f} ms")
     ego_trajectory = outputs['trajectory'].squeeze(0).detach().cpu().tolist()
 
+    # --- Predicted vehicle agent boxes ---
+    pred_vehicle_bboxes = outputs["vehicle_agent_states"].cpu()[0].numpy().tolist()
+    pred_vehicle_bboxes_lb = outputs["vehicle_agent_labels"].cpu()[0].numpy().tolist()
+    pred_vehicle_bboxes = [box for box, label in zip(pred_vehicle_bboxes, pred_vehicle_bboxes_lb) if label]
+
+    # --- Predicted pedestrian agent boxes ---
+    pred_pedestrian_bboxes = outputs["pedestrian_agent_states"].cpu()[0].numpy().tolist()
+    pred_pedestrian_bboxes_lb = outputs["pedestrian_agent_labels"].cpu()[0].numpy().tolist()
+    pred_pedestrian_bboxes = [box for box, label in zip(pred_pedestrian_bboxes, pred_pedestrian_bboxes_lb) if label]
+
+    if outputs["traffic_light_state"].cpu()[0].sigmoid().round().int().numpy()[0] == 0:
+        pred_traffic_light = "GREEN"
+    else:
+        pred_traffic_light = "RED"
+
     with torch.no_grad():
         feat_copy = {k: v.unsqueeze(0) for k, v in features.items()}
         outputs = agent.forward(feat_copy, gaze_flag=False, neighbours_flag=False)
     ego_trajectory_no_unreliables = outputs['trajectory'].squeeze(0).detach().cpu().tolist()
+
+    semantic_map = img_to_base64(draw_semantic(targets['bev_semantic_map']))
+    pred_semantic_map = img_to_base64(draw_semantic(outputs['bev_semantic_map'][0].argmax(dim=0)))
+
     # --- Package data ---
     data = {
         "image": f"data:image/png;base64,{encoded_img}",
@@ -300,14 +322,21 @@ def scenario_data():
         "true_trajectory": true_trajectory,
         "vehicle_bboxes": vehicle_bboxes,
         "pedestrian_bboxes": pedestrian_bboxes,
-        "lidar_raw": lidar_list,
+        "semantic": f"data:image/png;base64,{semantic_map}",
+        "pred_semantic": f"data:image/png;base64,{pred_semantic_map}",
         "light": traffic_light,
+        "pred_vehicle_bboxes": pred_vehicle_bboxes,
+        "pred_pedestrian_bboxes": pred_pedestrian_bboxes,
+        "pred_light": pred_traffic_light,
+        "lidar_raw": lidar_list,
         "fps": fps,
         "ms": ms
     }
 
+    json_data = json.dumps(data).encode('utf-8')
+    gzip_data = gzip.compress(json_data, compresslevel=5)
     logger.info("Returning scenario_data")
-    return jsonify(data)
+    return Response(gzip_data, mimetype='application/json', headers={'Content-Encoding': 'gzip'})
 
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(cfg: DictConfig):

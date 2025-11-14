@@ -99,7 +99,7 @@ class HiddenModel(nn.Module):
         self._traffic_light_head = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),  # pool BEV to 1x1
             nn.Flatten(),  # (B, C)
-            nn.Linear(config.bev_features_channels, 1)  # output single logit per traffic light
+            nn.Linear(config.bev_features_channels, 1) # single logit if we should be going forward or not
         )
 
         tf_decoder_layer = nn.TransformerDecoderLayer(
