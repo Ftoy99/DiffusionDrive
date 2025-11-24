@@ -219,7 +219,8 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         annotations = scene.frames[frame_idx].annotations
         ego_pose = StateSE2(*scene.frames[frame_idx].ego_status.ego_pose)
 
-        traffic_light_state = self._compute_light_state(ego_pose, frame_idx, scene)
+        traffic_light_state = self._compute_traffic_light_state(ego_pose, frame_idx, scene)
+        stop_lines = self._get_stop_lines_for_lane(ego_pose, frame_idx, scene)
 
         vehicle_agent_states, vehicle_agent_labels = self._compute_agent_targets(annotations,"vehicle")
         pedestrian_agent_states, pedestrian_agent_labels = self._compute_agent_targets(annotations,"pedestrian")
@@ -232,33 +233,68 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
             "pedestrian_agent_states": pedestrian_agent_states,
             "pedestrian_agent_labels": pedestrian_agent_labels,
             "traffic_light_state": traffic_light_state,
+            "stop_lines": stop_lines,
             "bev_semantic_map": bev_semantic_map,
         }
 
-    def _compute_light_state(self, ego_pose, frame_idx, scene):
+    def _compute_traffic_light_state(self, ego_pose, frame_idx, scene):
         traffic_light_state = 0  # default: no stop
         ego_point = ego_pose.point
-        if scene.frames[frame_idx].traffic_lights:
-            # Loop over all traffic lights
-            for tl in scene.frames[frame_idx].traffic_lights:
-                id, state = tl
-                lane_connector = scene.map_api.get_map_object(str(id), SemanticMapLayer.LANE_CONNECTOR)
 
-                if not lane_connector:
-                    continue
+        #Find ego lane
+        ego_lane, dist = scene.map_api.get_distance_to_nearest_map_object(ego_point, SemanticMapLayer.LANE)
+        if not ego_lane:
+            return torch.tensor([0.0])
 
-                # Find nearest ego lane
-                ego_lane, dist = scene.map_api.get_distance_to_nearest_map_object(ego_point, SemanticMapLayer.LANE)
-                if not ego_lane:
-                    continue
+        # Get connectors lane is leading to
+        outgoing_connectors = scene.map_api.get_map_object(str(ego_lane),SemanticMapLayer.LANE).outgoing_edges
+        # Get active traffic lights in scene
+        traffic_lights_in_scene = scene.frames[frame_idx].traffic_lights
+        if not traffic_lights_in_scene:
+            return torch.tensor([0.0])
+        # if any connectors lane is leading to has the active traffic lights make it red
+        for connector in outgoing_connectors:
+            connector_id = str(connector.id)
 
-                # Check if ego lane is part of connector
-                if ego_lane in [l.id for l in lane_connector.incoming_edges]:
-                    if state:
+            # Compare with active traffic lights in this frame
+            for tl_id, tl_state in traffic_lights_in_scene:
+                if str(tl_id) == connector_id:
+                    if tl_state:  # RED or must-stop
                         traffic_light_state = 1
-                        break  # no need to check further, ego must stop
-        traffic_light_state = torch.tensor([traffic_light_state], dtype=torch.float)
-        return traffic_light_state
+                    break
+
+        return torch.tensor([float(traffic_light_state)], dtype=torch.float)
+
+    def _get_stop_lines_for_lane(self, ego_pose, frame_idx, scene: Scene):
+        stop_line_tensors = []
+        ego_point = ego_pose.point
+        # Get ego lane
+        ego_lane_id, _ = scene.map_api.get_distance_to_nearest_map_object(
+            ego_point, SemanticMapLayer.LANE
+        )
+        if not ego_lane_id:
+            return stop_line_tensors
+
+        ego_lane_obj = scene.map_api.get_map_object(str(ego_lane_id), SemanticMapLayer.LANE)
+
+        # Stop lines on ego lane
+        for sl in ego_lane_obj.stop_lines:
+            if sl.polygon:
+                polygon: Polygon = self._geometry_local_coords(sl.polygon, ego_pose)
+                exterior = np.array(polygon.exterior.coords).reshape((-1, 1, 2))
+                tensor = torch.tensor(exterior, dtype=torch.float32)
+                stop_line_tensors.append(tensor)
+
+        # Stop lines on outgoing edges
+        for out_edge in ego_lane_obj.outgoing_edges:
+            for sl in out_edge.stop_lines:
+                if sl.polygon:
+                    polygon: Polygon = self._geometry_local_coords(sl.polygon, ego_pose)
+                    exterior = np.array(polygon.exterior.coords).reshape((-1, 1, 2))
+                    tensor = torch.tensor(exterior, dtype=torch.float32)
+                    stop_line_tensors.append(tensor)
+
+        return stop_line_tensors
 
     def _compute_agent_targets(self, annotations: Annotations , agent_class:str) -> Tuple[torch.Tensor, torch.Tensor]:
         """

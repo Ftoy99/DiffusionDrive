@@ -312,6 +312,10 @@ def scenario_data():
     semantic_map = img_to_base64(draw_semantic(targets['bev_semantic_map']))
     pred_semantic_map = img_to_base64(draw_semantic(outputs['bev_semantic_map'][0].argmax(dim=0)))
 
+    stop_lines = targets["stop_lines"]
+    if stop_lines:
+        stop_lines = targets["stop_lines"][0].squeeze(1).detach().cpu().tolist()
+
     # --- Package data ---
     data = {
         "image": f"data:image/png;base64,{encoded_img}",
@@ -325,6 +329,7 @@ def scenario_data():
         "semantic": f"data:image/png;base64,{semantic_map}",
         "pred_semantic": f"data:image/png;base64,{pred_semantic_map}",
         "light": traffic_light,
+        "stop_line": stop_lines,
         "pred_vehicle_bboxes": pred_vehicle_bboxes,
         "pred_pedestrian_bboxes": pred_pedestrian_bboxes,
         "pred_light": pred_traffic_light,

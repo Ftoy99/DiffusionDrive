@@ -92,7 +92,7 @@ class HiddenConfig:
     # BEV mapping
     bev_semantic_classes = {
         1: ("polygon", [SemanticMapLayer.LANE, SemanticMapLayer.INTERSECTION]),  # road
-        1: ("polygon", [SemanticMapLayer.CROSSWALK]),  # road
+        2: ("polygon", [SemanticMapLayer.CROSSWALK]),  # crosswalk
         3: ("polygon", [SemanticMapLayer.WALKWAYS]),  # walkways
         4: ("linestring", [SemanticMapLayer.LANE, SemanticMapLayer.LANE_CONNECTOR]),  # centerline
         5: (

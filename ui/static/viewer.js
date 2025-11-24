@@ -169,6 +169,25 @@ async function initScene() {
     });
     scene.add(pred_pedestrian_boxMesh);
 
+    // Draw stop line if it exists
+    if (data.stop_line && data.stop_line.length > 0) {
+        console.log('Stop line points:', data.stop_line);
+
+        // Convert to Vector3 (Y = 0.5 to lift above ground)
+        const curvePoints = data.stop_line.map(p => new THREE.Vector3(p[0], 0.5, p[1]));
+
+        console.log(`Drawing stop line with ${curvePoints.length} points`);
+
+        // Create a CatmullRomCurve3 for smoothness
+        const curve = new THREE.CatmullRomCurve3(curvePoints);
+
+        // Thick 3D tube
+        const tubeGeometry = new THREE.TubeGeometry(curve, 64, 0.1, 8, false);
+        const tubeMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 }); // yellow
+        const tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
+        scene.add(tubeMesh);
+    }
+
     // Camera window UI
     const cameraEl = document.getElementById('camera-window');
     cameraEl.src = data.image;
@@ -207,7 +226,7 @@ async function initScene() {
     window.addEventListener('resize', onResize);
     onResize();
 
-    // 🔹 Animation loop (store frame ID for cancelation)
+    //  Animation loop (store frame ID for cancelation)
     function animationLoop() {
         controls.update();
         renderer.render(scene, camera);
