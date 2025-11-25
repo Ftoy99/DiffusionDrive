@@ -238,7 +238,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         }
 
     def _compute_traffic_light_state(self, ego_pose, frame_idx, scene):
-        traffic_light_state = 0  # default: no stop
+        traffic_light_state = 0.0 # default: no stop
         ego_point = ego_pose.point
 
         #Find ego lane
@@ -252,6 +252,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         traffic_lights_in_scene = scene.frames[frame_idx].traffic_lights
         if not traffic_lights_in_scene:
             return torch.tensor([0.0])
+
         # if any connectors lane is leading to has the active traffic lights make it red
         for connector in outgoing_connectors:
             connector_id = str(connector.id)
@@ -260,7 +261,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
             for tl_id, tl_state in traffic_lights_in_scene:
                 if str(tl_id) == connector_id:
                     if tl_state:  # RED or must-stop
-                        traffic_light_state = 1
+                        traffic_light_state = 1.0
                     break
 
         return torch.tensor([float(traffic_light_state)], dtype=torch.float)
@@ -276,14 +277,6 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
             return stop_line_tensors
 
         ego_lane_obj = scene.map_api.get_map_object(str(ego_lane_id), SemanticMapLayer.LANE)
-
-        # Stop lines on ego lane
-        for sl in ego_lane_obj.stop_lines:
-            if sl.polygon:
-                polygon: Polygon = self._geometry_local_coords(sl.polygon, ego_pose)
-                exterior = np.array(polygon.exterior.coords).reshape((-1, 1, 2))
-                tensor = torch.tensor(exterior, dtype=torch.float32)
-                stop_line_tensors.append(tensor)
 
         # Stop lines on outgoing edges
         for out_edge in ego_lane_obj.outgoing_edges:

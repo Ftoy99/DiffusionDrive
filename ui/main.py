@@ -55,7 +55,7 @@ def scenarios():
 
     return "".join(
         f'<option value="{token}">{token}</option>'
-        for token in scene_loader.tokens
+        for token in scene_loader.tokens[:10000]
     )
 
 @app.route("/models")
@@ -133,25 +133,25 @@ def gaze_png():
     buffer.seek(0)
     return send_file(buffer, mimetype='image/png')
 
-@app.route("/lidar")
-def lidar():
-    img_tag = f'<img src="/lidar_png?_={time.time()}" class="w-full h-32 object-contain">'
-    return img_tag
-
-@app.route("/lidar_png")
-def lidar_png():
-    global features
-    if features is None:
-        return "<div>No features initialized</div>"
-
-    img_tensor = features["lidar_feature"]
-    img_array = draw_bev(img_tensor,targets["trajectory"])
-
-    pil_img = Image.fromarray(img_array)
-    buffer = io.BytesIO()
-    pil_img.save(buffer, format='PNG')
-    buffer.seek(0)
-    return send_file(buffer, mimetype='image/png')
+# @app.route("/lidar")
+# def lidar():
+#     img_tag = f'<img src="/lidar_png?_={time.time()}" class="w-full h-32 object-contain">'
+#     return img_tag
+#
+# @app.route("/lidar_png")
+# def lidar_png():
+#     global features
+#     if features is None:
+#         return "<div>No features initialized</div>"
+#
+#     img_tensor = features["lidar_feature"]
+#     img_array = draw_bev(img_tensor,targets["trajectory"])
+#
+#     pil_img = Image.fromarray(img_array)
+#     buffer = io.BytesIO()
+#     pil_img.save(buffer, format='PNG')
+#     buffer.seek(0)
+#     return send_file(buffer, mimetype='image/png')
 
 @app.route("/semantic-result")
 def semantic_result():
