@@ -175,8 +175,35 @@ class LossComputer(nn.Module):
             avg_factor=None
         )
 
+        #Stop line loss
+        traj_xy = best_reg[..., :2]  # predicted XY
+
+        p0 = targets['stop_lines'][:, 0, :]        # stop line point: (b, 2)
+        p1 = targets['stop_lines'][:, 1, :]        # stop line point: (b, 2)
+        line_vec = p1 - p0 # vector of stop line
+        line_len = torch.norm(line_vec, dim=-1, keepdim=True) + 1e-6 # root (x1-x0)^2 ...
+        line_dir = line_vec / line_len  # unit direction (l)
+        # vector from p0 to each waypoint
+        vec_to_wp = traj_xy - p0[:, None, None, :]
+
+        # projection along the line
+        proj = torch.sum(vec_to_wp * line_dir[:, None, None, :], dim=-1) # (b 1 8)
+
+        # mask for waypoints beyond the stop line
+        mask = (proj > line_len[:, None, ]).float()
+
+        # perpendicular distance
+        perp_vec = vec_to_wp - proj[..., None] * line_dir[:, None, None, :]
+        perp_dist = torch.norm(perp_vec, dim=-1)
+
+        tl_mask = targets['traffic_light_state'][:, None] # traffic light mask 1.0 = red
+        combined_mask = mask * tl_mask  # only penalize points past line AND light = red
+
+        # hinge-style stop-line loss
+        stop_line_loss = (perp_dist * combined_mask).mean()
+
         # --- Regression loss ---
-        reg_loss = self.reg_loss_weight * F.l1_loss(best_reg, target_best)
+        reg_loss = (self.reg_loss_weight * F.l1_loss(best_reg, target_best)) + self.reg_loss_weight*2*stop_line_loss
 
         # --- Total loss ---
         ret_loss = loss_cls + reg_loss

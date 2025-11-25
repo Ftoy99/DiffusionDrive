@@ -220,7 +220,7 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
         ego_pose = StateSE2(*scene.frames[frame_idx].ego_status.ego_pose)
 
         traffic_light_state = self._compute_traffic_light_state(ego_pose, frame_idx, scene)
-        stop_lines = self._get_stop_lines_for_lane(ego_pose, frame_idx, scene)
+        stop_lines = self._get_stop_line_for_lane(ego_pose, frame_idx, scene)
 
         vehicle_agent_states, vehicle_agent_labels = self._compute_agent_targets(annotations,"vehicle")
         pedestrian_agent_states, pedestrian_agent_labels = self._compute_agent_targets(annotations,"pedestrian")
@@ -266,15 +266,16 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
 
         return torch.tensor([float(traffic_light_state)], dtype=torch.float)
 
-    def _get_stop_lines_for_lane(self, ego_pose, frame_idx, scene: Scene):
-        stop_line_tensors = []
+    def _get_stop_line_for_lane(self, ego_pose, frame_idx, scene: Scene):
+        zero_line = torch.zeros((2, 2), dtype=torch.float32) # init
+
         ego_point = ego_pose.point
         # Get ego lane
         ego_lane_id, _ = scene.map_api.get_distance_to_nearest_map_object(
             ego_point, SemanticMapLayer.LANE
         )
         if not ego_lane_id:
-            return stop_line_tensors
+            return zero_line
 
         ego_lane_obj = scene.map_api.get_map_object(str(ego_lane_id), SemanticMapLayer.LANE)
 
@@ -283,11 +284,48 @@ class HiddenTargetBuilder(AbstractTargetBuilder):
             for sl in out_edge.stop_lines:
                 if sl.polygon:
                     polygon: Polygon = self._geometry_local_coords(sl.polygon, ego_pose)
-                    exterior = np.array(polygon.exterior.coords).reshape((-1, 1, 2))
-                    tensor = torch.tensor(exterior, dtype=torch.float32)
-                    stop_line_tensors.append(tensor)
+                    coords = np.array(polygon.exterior.coords[:-1])  # drop duplicate
 
-        return stop_line_tensors
+                    if len(coords) < 2:
+                        return zero_line
+
+                    #mock center line with centroid
+                    centroid = coords.mean(axis=0)
+                    pts_centered = coords - centroid
+                    _, _, Vt = np.linalg.svd(pts_centered)
+                    direction = Vt[0]  # main axis
+
+                    # span the line along the polygon
+                    projections = pts_centered @ direction
+                    line_length = projections.max() - projections.min()
+                    start = centroid - 0.5 * line_length * direction
+                    end = centroid + 0.5 * line_length * direction
+
+                    # convert to tensor [2,2]
+                    stop_line_tensor = torch.tensor([start, end], dtype=torch.float32)
+                    return stop_line_tensor
+
+        return zero_line
+
+    def polygon_to_stop_line(self,polygon: Polygon, line_length=None):
+        coords = np.array(polygon.exterior.coords[:-1])  # drop duplicate
+        centroid = coords.mean(axis=0)
+
+        # principal contro lanalysis , find main axis
+        pts_centered = coords - centroid
+        _, _, Vt = np.linalg.svd(pts_centered)
+        direction = Vt[0]
+
+        # determine line length
+        if line_length is None:
+            # line spans polygon projection along axis
+            projections = pts_centered @ direction
+            line_length = projections.max() - projections.min()
+
+        start = centroid - 0.5 * line_length * direction
+        end = centroid + 0.5 * line_length * direction
+
+        return np.array([start, end])  # shape [2,2]
 
     def _compute_agent_targets(self, annotations: Annotations , agent_class:str) -> Tuple[torch.Tensor, torch.Tensor]:
         """

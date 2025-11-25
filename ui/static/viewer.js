@@ -170,22 +170,17 @@ async function initScene() {
     scene.add(pred_pedestrian_boxMesh);
 
     // Draw stop line if it exists
-    if (data.stop_line && data.stop_line.length > 0) {
+    if (data.stop_line) {
         console.log('Stop line points:', data.stop_line);
 
-        // Convert to Vector3 (Y = 0.5 to lift above ground)
+      // Convert to Vector3 (Y = 0.5 to lift above ground)
         const curvePoints = data.stop_line.map(p => new THREE.Vector3(p[0], 0.5, p[1]));
 
-        console.log(`Drawing stop line with ${curvePoints.length} points`);
-
-        // Create a CatmullRomCurve3 for smoothness
-        const curve = new THREE.CatmullRomCurve3(curvePoints);
-
-        // Thick 3D tube
-        const tubeGeometry = new THREE.TubeGeometry(curve, 64, 0.1, 8, false);
-        const tubeMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 }); // yellow
-        const tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
-        scene.add(tubeMesh);
+        // For a straight line, we don't need CatmullRom, just LineGeometry
+        const geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
+        const material = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 4 });
+        const line = new THREE.Line(geometry, material);
+        scene.add(line);
     }
 
     // Camera window UI
