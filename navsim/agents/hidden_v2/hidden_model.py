@@ -617,8 +617,8 @@ class TrajectoryHead(nn.Module):
                                       gaze_query, trajectories, targets,
                                       global_img)
         else:
-            return self.forward_test(ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding,
-                                     gaze_query, trajectories,
+            return self.forward_train(ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding,
+                                     gaze_query, trajectories, targets,
                                      global_img)
 
     def forward_train(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,

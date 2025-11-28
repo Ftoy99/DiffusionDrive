@@ -275,12 +275,13 @@ def scenario_data():
 
     # --- Inference ---
     logger.info("Running inference")
-    feat_copy = {k: v.unsqueeze(0) for k, v in features.items()}
     agent.eval()
 
     start = time.perf_counter()
     with torch.no_grad():
-        outputs = agent.forward(feat_copy, gaze_flag=use_gaze, neighbours_flag=use_neighbors)
+        feat_copy = {k: v.unsqueeze(0) for k, v in features.items()}
+        targets_w_b = {k:v.unsqueeze(0) for k,v in targets.items()}
+        outputs = agent.forward(feat_copy, gaze_flag=use_gaze, neighbours_flag=use_neighbors,targets=targets_w_b)
     end = time.perf_counter()
 
     inference_time = end - start  # seconds
@@ -304,9 +305,10 @@ def scenario_data():
     else:
         pred_traffic_light = "RED"
 
-    with torch.no_grad():
-        feat_copy = {k: v.unsqueeze(0) for k, v in features.items()}
-        outputs = agent.forward(feat_copy, gaze_flag=False, neighbours_flag=False)
+    # with torch.no_grad():
+    #     feat_copy = {k: v.unsqueeze(0) for k, v in features.items()}
+    #     targets_w_b = {k:v.unsqueeze(0) for k,v in targets.items()}
+    #     outputs = agent.forward(feat_copy, gaze_flag=False, neighbours_flag=False ,targets=targets_w_b)
     ego_trajectory_no_unreliables = outputs['trajectory'].squeeze(0).detach().cpu().tolist()
 
     semantic_map = img_to_base64(draw_semantic(targets['bev_semantic_map']))

@@ -175,35 +175,45 @@ class LossComputer(nn.Module):
             avg_factor=None
         )
 
-        #Stop line loss
+        # Stop line loss (FIXED)
         traj_xy = best_reg[..., :2]  # predicted XY
 
-        p0 = targets['stop_lines'][:, 0, :]        # stop line point: (b, 2)
-        p1 = targets['stop_lines'][:, 1, :]        # stop line point: (b, 2)
-        line_vec = p1 - p0 # vector of stop line
-        line_len = torch.norm(line_vec, dim=-1, keepdim=True) + 1e-6 # root (x1-x0)^2 ...
-        line_dir = line_vec / line_len  # unit direction (l)
-        # vector from p0 to each waypoint
-        vec_to_wp = traj_xy - p0[:, None, None, :]
+        # --- Line Geometry ---
+        p0 = targets['stop_lines'][:, 0, :]  # stop line point 0: (B, 2)
+        p1 = targets['stop_lines'][:, 1, :]  # stop line point 1: (B, 2)
+        line_vec = p1 - p0  # Vector along the stop line (L_x, L_y)
 
-        # projection along the line
-        proj = torch.sum(vec_to_wp * line_dir[:, None, None, :], dim=-1) # (b 1 8)
+        # 1. Calculate the Unit Normal Vector (Perpendicular to line_vec)
+        # We calculate the 2D perpendicular vector: N = (L_y, -L_x)
+        perp_vec = torch.stack([line_vec[..., 1], -line_vec[..., 0]], dim=-1)
 
-        # mask for waypoints beyond the stop line
-        mask = (proj > line_len[:, None, ]).float()
+        # Normalize to get the unit normal vector (n-hat)
+        norm = torch.norm(perp_vec, dim=-1, keepdim=True) + 1e-6
+        unit_normal = perp_vec / norm  # Shape (B, 2)
 
-        # perpendicular distance
-        perp_vec = vec_to_wp - proj[..., None] * line_dir[:, None, None, :]
-        perp_dist = torch.norm(perp_vec, dim=-1)
+        # 2. Vector from p0 to waypoint
+        # vec_to_wp = w - p0, broadcasted to all waypoints
+        vec_to_wp = traj_xy - p0[:, None, None, :]  # Shape (B, M, T, 2)
 
-        tl_mask = targets['traffic_light_state'][:, None] # traffic light mask 1.0 = red
-        combined_mask = mask * tl_mask  # only penalize points past line AND light = red
+        # 3. Signed Perpendicular Distance (d_parallel)
+        # This is the distance from the infinite line defined by p0 and p1.
+        # d_parallel = (w - p0) . n-hat
+        signed_distance = torch.sum(vec_to_wp * unit_normal[:, None, None, :], dim=-1)  # Shape (B, M, T)
 
-        # hinge-style stop-line loss
-        stop_line_loss = (perp_dist * combined_mask).mean()
+        # 4. Hinge-Style Loss and Masking
+        tl_mask = targets['traffic_light_state'][:, None, None].float()  # traffic light mask 1.0 = red/stop
+        # Clamped distance: Only penalize POSITIVE distances (crossings)
+        distance_violation = torch.clamp(signed_distance, min=0.0)
+
+        # Combined Mask: Penalty only when light is red (tl_mask) AND crossing occurred (distance_violation > 0)
+        combined_loss_term = distance_violation * tl_mask
+
+        stop_line_loss = combined_loss_term.mean()
+        # --- End of Stop Line Loss ---
 
         # --- Regression loss ---
-        reg_loss = (self.reg_loss_weight * F.l1_loss(best_reg, target_best)) + self.reg_loss_weight*2*stop_line_loss
+        # NOTE: The scale * 2 is a hyperparameter for weighting the stop line loss
+        reg_loss = (self.reg_loss_weight * F.l1_loss(best_reg, target_best)) + (self.reg_loss_weight * stop_line_loss)
 
         # --- Total loss ---
         ret_loss = loss_cls + reg_loss
