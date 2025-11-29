@@ -13,5 +13,5 @@ config:
 
   latent: False
 
-checkpoint_path: null
+checkpoint_path: /mnt/ds/navsim-main/exp/training_hidden_v2_30e/2025.11.28.14.54.08/lightning_logs/version_0/checkpoints/e30.ckpt
 lr: 1e-4

@@ -395,12 +395,12 @@ class CustomTransformerDecoderLayer(nn.Module):
             config=config,
             in_bev_dims=256,
         )
-        self.self_attention = nn.MultiheadAttention(
-            config.tf_d_model,
-            config.tf_num_head,
-            dropout=config.tf_dropout,
-            batch_first=True,
-        )
+        # self.self_attention = nn.MultiheadAttention(
+        #     config.tf_d_model,
+        #     config.tf_num_head,
+        #     dropout=config.tf_dropout,
+        #     batch_first=True,
+        # )
         self.cross_agent_attention = nn.MultiheadAttention(
             config.tf_d_model,
             config.tf_num_head,
@@ -426,12 +426,12 @@ class CustomTransformerDecoderLayer(nn.Module):
         )
 
         self.dropout1 = nn.Dropout(0.1)
-        self.dropout2 = nn.Dropout(0.1)
+        # self.dropout2 = nn.Dropout(0.1)
         self.dropout3 = nn.Dropout(0.1)
         self.dropout4 = nn.Dropout(0.1)
 
         self.norm1 = nn.LayerNorm(config.tf_d_model)
-        self.norm2 = nn.LayerNorm(config.tf_d_model)
+        # self.norm2 = nn.LayerNorm(config.tf_d_model)
         self.norm3 = nn.LayerNorm(config.tf_d_model)
         self.norm4 = nn.LayerNorm(config.tf_d_model)
         self.norm5 = nn.LayerNorm(config.tf_d_model)

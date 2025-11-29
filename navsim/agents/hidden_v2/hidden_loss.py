@@ -51,6 +51,7 @@ def hidden_loss(
         + config.traffic_light_weight * traffic_light_loss
 
     )
+
     loss_dict = {
         'loss': loss,
         'trajectory_loss': config.trajectory_weight*trajectory_loss,
@@ -62,6 +63,7 @@ def hidden_loss(
         'bev_semantic_loss': config.bev_semantic_weight*bev_semantic_loss,
         'traffic_light_loss': config.traffic_light_weight*traffic_light_loss
     }
+
     if "trajectory_loss_dict" in predictions:
         trajectory_loss_dict = predictions["trajectory_loss_dict"]
         loss_dict.update(trajectory_loss_dict)
