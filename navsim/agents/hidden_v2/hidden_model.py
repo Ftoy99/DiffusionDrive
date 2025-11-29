@@ -464,8 +464,8 @@ class CustomTransformerDecoderLayer(nn.Module):
             self.cross_agent_attention(traj_feature, agents_query, agents_query)[0])
         traj_feature = self.norm1(traj_feature)
 
-        traj_feature = traj_feature + self.dropout2(self.self_attention(traj_feature, traj_feature, traj_feature)[0])
-        traj_feature = self.norm2(traj_feature)
+        # traj_feature = traj_feature + self.dropout2(self.self_attention(traj_feature, traj_feature, traj_feature)[0])
+        # traj_feature = self.norm2(traj_feature)
 
         # 4.5 cross attention with  ego query
         traj_feature = traj_feature + self.dropout3(self.cross_ego_attention(traj_feature, ego_query, ego_query)[0])
@@ -617,8 +617,8 @@ class TrajectoryHead(nn.Module):
                                       gaze_query, trajectories, targets,
                                       global_img)
         else:
-            return self.forward_train(ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding,
-                                     gaze_query, trajectories, targets,
+            return self.forward_test(ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding,
+                                     gaze_query, trajectories,
                                      global_img)
 
     def forward_train(self, ego_query, agents_query, bev_feature, bev_spatial_shape, status_encoding, gaze_query,

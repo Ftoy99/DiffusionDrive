@@ -305,10 +305,10 @@ def scenario_data():
     else:
         pred_traffic_light = "RED"
 
-    # with torch.no_grad():
-    #     feat_copy = {k: v.unsqueeze(0) for k, v in features.items()}
-    #     targets_w_b = {k:v.unsqueeze(0) for k,v in targets.items()}
-    #     outputs = agent.forward(feat_copy, gaze_flag=False, neighbours_flag=False ,targets=targets_w_b)
+    with torch.no_grad():
+        feat_copy = {k: v.unsqueeze(0) for k, v in features.items()}
+        targets_w_b = {k:v.unsqueeze(0) for k,v in targets.items()}
+        outputs = agent.forward(feat_copy, gaze_flag=False, neighbours_flag=False ,targets=targets_w_b)
     ego_trajectory_no_unreliables = outputs['trajectory'].squeeze(0).detach().cpu().tolist()
 
     semantic_map = img_to_base64(draw_semantic(targets['bev_semantic_map']))
